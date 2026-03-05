@@ -2,6 +2,7 @@
 
 import { siteConfig, services } from '@/config/services';
 import ServiceCard from '@/components/ServiceCard';
+import CelestialBorder from '@/components/CelestialBorder';
 
 export default function Hero() {
   return (
@@ -12,7 +13,7 @@ export default function Hero() {
       <div className="max-w-6xl mx-auto w-full">
         {/* Decorative Top Line */}
         <div className="flex justify-center mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <div className="w-16 h-px bg-portal-gold opacity-40" />
+          <div className="w-16 h-px bg-white opacity-20" />
         </div>
 
         {/* Main Title */}
@@ -21,9 +22,21 @@ export default function Hero() {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg lg:text-xl text-portal-text opacity-80 text-center max-w-xl mx-auto mb-20 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+        <p className="text-lg lg:text-xl text-portal-text opacity-80 text-center max-w-xl mx-auto mb-8 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
           {siteConfig.heroSubtitle}
         </p>
+
+        {/* Main CTA Button */}
+        <div className="mb-20 flex justify-center animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
+          <CelestialBorder borderRadius="0.75rem" active={true}>
+            <button
+              onClick={() => console.log('Open booking')}
+              className="bg-transparent text-white font-heading font-medium text-lg py-4 px-12 rounded-xl"
+            >
+              Reservar tu sesión
+            </button>
+          </CelestialBorder>
+        </div>
 
         {/* Service Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -35,9 +48,9 @@ export default function Hero() {
                   ? 'md:col-span-2 md:max-w-md md:mx-auto lg:col-span-1 lg:max-w-none'
                   : ''
               }`}
-              style={{ animationDelay: `${0.8 + index * 0.2}s` }}
+              style={{ animationDelay: `${1.0 + index * 0.2}s` }}
             >
-              <ServiceCard service={service} onBook={() => {}} />
+              <ServiceCard service={service} />
             </div>
           ))}
         </div>

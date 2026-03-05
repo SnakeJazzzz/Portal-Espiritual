@@ -25,6 +25,11 @@
   --animate-shooting-star: shooting-star 1s ease-in-out forwards;
   --animate-celestial-rotate: celestial-rotate 750s linear infinite;
   --animate-fade-in-up: fade-in-up 0.7s ease-out both;
+  --animate-celestial-star-pulse: celestial-star-pulse 2s ease-in-out infinite;
+  --animate-border-trace-top: border-trace-top 2s ease-in-out infinite;
+  --animate-border-trace-right: border-trace-right 2s ease-in-out infinite 0.5s;
+  --animate-border-trace-bottom: border-trace-bottom 2s ease-in-out infinite 1s;
+  --animate-border-trace-left: border-trace-left 2s ease-in-out infinite 1.5s;
 }
 
 /* Portal Espiritual Color Palette - CSS Variables for non-Tailwind usage */
@@ -103,6 +108,66 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Celestial Border Animations */
+@keyframes celestial-star-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes border-trace-top {
+  0%, 100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes border-trace-right {
+  0%, 100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes border-trace-bottom {
+  0%, 100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes border-trace-left {
+  0%, 100% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
   }
 }
 
