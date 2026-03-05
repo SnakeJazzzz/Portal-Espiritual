@@ -45,6 +45,8 @@ export const services: Service[] = [
 
 export const siteConfig = {
   heroTitle: 'Portal Espiritual',
+  heroTitleLine1: 'Portal',
+  heroTitleLine2: 'Espiritual',
   heroSubtitle: 'Conecta con tu guía interior',
   aboutMe: {
     photo: '/about-photo.jpg',

@@ -7,6 +7,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 3 - Hero Section with Constellation Title (March 5, 2026)
+
+#### Added
+- **ConstellationTitle Component** (`src/components/constellation/ConstellationTitle.tsx`)
+  - Animated SVG constellation forming text "Portal" and "Espiritual"
+  - Two-line stacked layout with configurable text from siteConfig
+  - 4-phase animation sequence (4 seconds total):
+    1. Stars appear in two waves (0-3.5s): "Portal" stars first, then "Espiritual"
+    2. Connection lines draw progressively (0.5-3.7s) with stroke-dasharray animation
+    3. Glow effect pulses briefly (3.5-4.0s)
+    4. Callback triggers content reveal after completion
+  - Three-layer SVG rendering: connection lines, star glows, crisp star dots
+  - Responsive sizing (90% mobile, 85% tablet, 70% desktop)
+  - Proper viewBox calculation with padding for edge stars
+  - Memory-safe timeout management with cleanup
+  - Full `prefers-reduced-motion` support (instant reveal)
+
+- **Letter Path Generation** (`src/components/constellation/letterPaths.ts`)
+  - `getTwoLineConstellation()` function for two-line text layouts
+  - Automatic letter positioning with configurable spacing
+  - Individual letter constellation definitions (P, O, R, T, A, L, E, S, I, U)
+  - Point and connection data structures for each letter
+  - Normalized coordinate system for consistent sizing
+  - Returns combined constellation data with total width/height
+
+- **Hero Component** (`src/components/Hero.tsx`)
+  - Full-screen constellation section with centered title
+  - Two-phase reveal: constellation animation → content fade-in
+  - Service cards grid (3 cards) with responsive layout:
+    - 1 column on mobile
+    - 2 columns on tablet (3rd card centered)
+    - 3 columns on desktop
+  - Staggered entrance animations with configurable delays
+  - Single CTA button "Reservar tu sesión" with celestial border
+  - Subtitle text from siteConfig
+  - Animation orchestration via state management
+
+- **ServiceCard Component** (`src/components/ServiceCard.tsx`)
+  - Glass-morphism design with backdrop blur
+  - Purple gradient border (portal-violet to portal-gold)
+  - Service name, duration, and price display
+  - Description text with proper text wrapping
+  - Responsive typography scaling
+  - Hover effects preparation (future enhancement)
+
+- **CelestialBorder Component** (`src/components/CelestialBorder.tsx`)
+  - Animated border with corner stars and border trace effect
+  - Configurable border radius and active state
+  - Sequential 3-phase animation (2.5s total):
+    1. Corner stars appear (0-0.8s)
+    2. Border traces clockwise (0.8-2.0s)
+    3. Resting state with pulsing stars
+  - Infinite animation loop when active
+  - SVG-based rendering with absolute positioning
+  - Respects `prefers-reduced-motion` (shows static state)
+  - Configurable via props (borderRadius, active)
+
+- **Site Configuration Updates** (`src/config/services.ts`)
+  - Added `heroTitleLine1: 'Portal'` for constellation first line
+  - Added `heroTitleLine2: 'Espiritual'` for constellation second line
+  - Maintains backward compatibility with `heroTitle` for aria-labels
+
+- **Animation Keyframes** (in `src/app/globals.css`)
+  - `@keyframes fade-in-up`: Fade in with upward slide (1s duration)
+  - Applied to subtitle, service cards, and CTA button
+  - Coordinated with constellation reveal timing
+
+#### Changed
+- Updated `src/app/page.tsx` to include Hero component
+- Hero section now drives entire above-fold experience
+- Content reveal synchronized with constellation animation completion
+
+#### Fixed
+- **Critical Memory Leak**: Fixed timeout cleanup in ConstellationTitle
+  - All timeouts now properly stored in ref array
+  - Cleanup function clears all timeouts on unmount
+  - Cleanup also runs at start of effect to prevent duplicates
+  - Added separate cleanup for reduced-motion code path
+- **TypeScript Type Error**: Changed timeout type from NodeJS.Timeout to ReturnType<typeof setTimeout>
+  - Fixes browser vs Node.js timer type conflict
+  - Ensures compatibility with browser environment
+- **Production Console Logs**: Removed all console.log statements
+  - Clean production build with no debug output
+- **Accessibility - Stroke Width**: Increased line stroke-width from 0.6 to 1.0
+  - Meets WCAG visibility guidelines
+  - Improves visual clarity on low-contrast displays
+- **Configurability**: Made constellation text editable via siteConfig
+  - No hardcoded strings in components
+  - Easy to update site title without touching component code
+
+#### Technical Improvements
+- Proper TypeScript typing throughout all new components
+- Consistent use of Tailwind v4 theme variables
+- Memoized constellation generation for performance
+- Pre-calculated line lengths for stroke-dasharray animations
+- Separated stars by line for independent animation waves
+- Clean component composition (Hero → ConstellationTitle + ServiceCard + CelestialBorder)
+- All animations respect user's motion preferences
+
+---
+
 ### Phase 2 - Star Field Background (March 4, 2026)
 
 #### Added
@@ -106,6 +207,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **Phase 3** (2026-03-05): Hero Section with Constellation Title - COMPLETED
 - **Phase 2** (2026-03-04): Star Field Background - COMPLETED
 - **Phase 1** (2026-03-03): Project Setup - COMPLETED
 
