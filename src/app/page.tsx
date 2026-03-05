@@ -1,4 +1,5 @@
 import StarField from '@/components/StarField';
+import Hero from '@/components/Hero';
 
 export default function Home() {
   return (
@@ -6,12 +7,10 @@ export default function Home() {
       {/* Star Field Background - z-0, fixed */}
       <StarField />
 
-      {/* Test Content - verify stars render behind */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center">
-        <h1 className="text-6xl font-heading font-bold text-white">
-          Portal Espiritual
-        </h1>
-      </div>
+      {/* Main Content */}
+      <main className="relative z-10">
+        <Hero />
+      </main>
     </div>
   );
 }
