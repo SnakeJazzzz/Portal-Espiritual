@@ -1,6 +1,32 @@
 @import "tailwindcss";
 
-/* Portal Espiritual Color Palette */
+/* Tailwind v4 Theme Configuration */
+@theme {
+  /* Custom Colors */
+  --color-portal-black: #050510;
+  --color-portal-indigo: #0F0A2E;
+  --color-portal-violet: #2D1B69;
+  --color-portal-gold: #C9A84C;
+  --color-portal-text: #E8E0F3;
+  --color-portal-white: #FFFFFF;
+  --color-portal-card-bg: rgba(45, 27, 105, 0.3);
+  --color-portal-card-border: rgba(255, 255, 255, 0.08);
+
+  /* Font Families */
+  --font-family-heading: 'Space Grotesk', sans-serif;
+  --font-family-body: 'Outfit', sans-serif;
+
+  /* Backdrop Blur */
+  --backdrop-blur-card: 16px;
+
+  /* Animations */
+  --animate-twinkle: twinkle var(--twinkle-duration, 5s) ease-in-out infinite;
+  --animate-twinkle-off: twinkle-off var(--twinkle-duration, 5s) ease-in-out infinite;
+  --animate-shooting-star: shooting-star 1s ease-in-out forwards;
+  --animate-celestial-rotate: celestial-rotate 750s linear infinite;
+}
+
+/* Portal Espiritual Color Palette - CSS Variables for non-Tailwind usage */
 :root {
   --portal-black: #050510;
   --portal-indigo: #0F0A2E;

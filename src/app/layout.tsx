@@ -19,7 +19,12 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: 'Portal Espiritual',
   description: 'Servicios espirituales: lecturas, divinación akáshica y sesiones uno a uno. Reserva tu cita.',
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+// Fixed: viewport should be a separate export in Next.js 14+ (not inside metadata)
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({

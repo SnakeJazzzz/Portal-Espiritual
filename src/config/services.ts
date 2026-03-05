@@ -6,7 +6,6 @@
 export interface Service {
   id: string;
   name: string;
-  emoji: string;
   duration: string;
   price: number;
   currency: string;
@@ -18,17 +17,15 @@ export const services: Service[] = [
   {
     id: 'lectura-de-cartas',
     name: 'Lectura de Cartas',
-    emoji: '=.',
     duration: '30 min',
     price: 500,
     currency: 'MXN',
-    description: 'Divinaci�n con cartas para interpretar el mensaje del universo que te sirva de gu�a para ti en este momento.',
+    description: 'Divinación con cartas para interpretar el mensaje del universo que te sirva de guía para ti en este momento.',
     calcomEventSlug: 'lectura-de-cartas',
   },
   {
     id: 'divinacion-akashica',
-    name: 'Divinaci�n Ak�shica',
-    emoji: '<',
+    name: 'Divinación Akáshica',
     duration: '30 min',
     price: 500,
     currency: 'MXN',
@@ -38,18 +35,17 @@ export const services: Service[] = [
   {
     id: 'uno-a-uno',
     name: 'Uno-a-Uno',
-    emoji: '>',
     duration: '60 min',
     price: 800,
     currency: 'MXN',
-    description: 'Espacio uno a uno para hablar libremente de cualquier tema. Una conversaci�n consciente donde se abre la posibilidad de conectar con tu equipo espiritual.',
+    description: 'Espacio uno a uno para hablar libremente de cualquier tema. Una conversación consciente donde se abre la posibilidad de conectar con tu equipo espiritual.',
     calcomEventSlug: 'uno-a-uno',
   },
 ];
 
 export const siteConfig = {
   heroTitle: 'Portal Espiritual',
-  heroSubtitle: 'Conecta con tu gu�a interior',
+  heroSubtitle: 'Conecta con tu guía interior',
   aboutMe: {
     photo: '/about-photo.jpg',
     text: 'Placeholder text for about me section',
