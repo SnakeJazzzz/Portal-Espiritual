@@ -37,7 +37,7 @@ You NEVER touch:
 - NO CSS-in-JS libraries
 
 **Typography:**
-- Google Fonts: Space Grotesk for headings, Outfit or Sora for body
+- Google Fonts: Josefin Sans for headings, Cormorant Garamond for body
 - NEVER use Inter or Roboto
 
 **Animations:**

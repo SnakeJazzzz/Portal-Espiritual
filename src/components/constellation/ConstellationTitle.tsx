@@ -12,7 +12,12 @@ export default function ConstellationTitle({ onAnimationComplete }: Constellatio
   const [visibleStars, setVisibleStars] = useState<Set<number>>(new Set());
   const [drawnLines, setDrawnLines] = useState<Set<number>>(new Set());
   const [isGlowing, setIsGlowing] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+    return false;
+  });
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Generate constellation data for two lines from config
@@ -41,7 +46,6 @@ export default function ConstellationTitle({ onAnimationComplete }: Constellatio
   // Check for reduced motion preference
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
 
     const handleChange = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches);
@@ -59,13 +63,16 @@ export default function ConstellationTitle({ onAnimationComplete }: Constellatio
 
     if (prefersReducedMotion) {
       // Show everything immediately for reduced motion
-      setVisibleStars(new Set(constellation.allPoints.map((_, i) => i)));
-      setDrawnLines(new Set(constellation.allConnections.map((_, i) => i)));
-      setIsGlowing(false);
-
+      // Defer state updates to avoid synchronous setState in useEffect
       const timeout = setTimeout(() => {
-        onAnimationComplete?.();
-      }, 500);
+        setVisibleStars(new Set(constellation.allPoints.map((_, i) => i)));
+        setDrawnLines(new Set(constellation.allConnections.map((_, i) => i)));
+        setIsGlowing(false);
+
+        setTimeout(() => {
+          onAnimationComplete?.();
+        }, 500);
+      }, 0);
       timeoutsRef.current.push(timeout);
 
       // Return cleanup function for reduced motion path

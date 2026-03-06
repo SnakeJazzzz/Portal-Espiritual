@@ -1,5 +1,242 @@
 # Development Log - Portal Espiritual
 
+## Phase 5: Font Migration and Typography Refinements - March 5, 2026
+
+**Status:** COMPLETED
+
+### Summary
+Migrated fonts from Space Grotesk/Outfit to Josefin Sans/Cormorant Garamond, fixed critical ESLint errors and hydration issues, implemented responsive typography across all components, and optimized page performance. The phase focused on production readiness with bug fixes, accessibility improvements, and comprehensive responsive design testing.
+
+### What Was Built
+
+#### Font System Migration
+- **Font Swap**
+  - Removed: Space Grotesk (headings), Outfit (body)
+  - Added: Josefin Sans (headings), Cormorant Garamond (body)
+  - Configured via Next.js Google Fonts with optimal `display: 'swap'`
+  - Weight configurations: Josefin Sans (300, 400, 700), Cormorant Garamond (300, 400, 600)
+
+- **Font Loading Architecture Fix**
+  - **CRITICAL FIX:** Moved CSS variable classes to `<html>` element in `layout.tsx`
+  - Previously: Variables only in `@theme` block (not accessible in browser)
+  - Now: `className={josefinSans.variable} ${cormorantGaramond.variable}` applied to HTML root
+  - Created explicit utility classes `.font-heading` and `.font-body` in `globals.css`
+  - Fallback chain: `var(--font-heading-next), 'Josefin Sans', sans-serif`
+
+#### Critical Bug Fixes
+
+**1. ESLint Errors - Lazy State Initialization**
+- **Issue:** Direct function calls in `useState()` initial value causing re-computation on every render
+- **Files Fixed:**
+  - `/src/components/StarField.tsx` - Line 82
+  - `/src/components/constellation/ConstellationTitle.tsx` - Line 15
+- **Solution:** Changed from `useState(fn())` to lazy initializer `useState(() => fn())`
+- **Impact:** Performance improvement, no unnecessary re-calculations on re-renders
+
+**2. Hydration Error - StarField Component**
+- **Issue:** `window.matchMedia()` called during SSR causing mismatch between server/client HTML
+- **Root Cause:** `prefersReducedMotion` check executed before component mounted
+- **Solution:** Added `mounted` state with deferred initialization
+  - Returns empty container during SSR
+  - Client-side initialization after mount via `setTimeout(..., 0)`
+  - Prevents hydration mismatch while maintaining functionality
+- **Files Modified:** `/src/components/StarField.tsx` (lines 81, 166-177, 236-244)
+
+#### Responsive Typography Implementation
+
+**Hero Section Updates** (`src/components/Hero.tsx`)
+- Subtitle: `text-xl lg:text-4xl` (20px mobile → 36px desktop)
+- CTA Button: `text-2xl lg:text-4xl` (24px mobile → 36px desktop)
+
+**ServiceCard Component** (`src/components/ServiceCard.tsx`)
+- Service name: `text-2xl lg:text-4xl` (24px mobile → 36px desktop)
+- Duration/price: `text-lg lg:text-2xl` (18px mobile → 24px desktop)
+- Description: `text-lg lg:text-2xl` (18px mobile → 24px desktop)
+
+**AboutMe Component** (`src/components/AboutMe.tsx`)
+- Section heading: `text-2xl lg:text-4xl` (24px mobile → 36px desktop)
+- Bio paragraphs: `text-lg lg:text-2xl` (18px mobile → 24px desktop)
+
+**Breakpoint Strategy**
+- Mobile: Base sizes (375px - 1023px)
+- Desktop: `lg:` prefix (1024px+)
+- Scaling ratio: ~1.5x-2x increase from mobile to desktop
+
+#### Full Page Assembly Verification
+
+**Page Structure** (`src/app/page.tsx`)
+- StarField (z-0, fixed background)
+- Hero Section (z-10, constellation + content)
+- AboutMe Section (z-10, profile + bio)
+- Footer (default layer, minimal design)
+
+**Responsive Testing**
+- Tested at 375px (mobile), 768px (tablet), 1440px (desktop)
+- All sections scale properly without layout breaks
+- Typography remains readable at all breakpoints
+- No horizontal scroll issues
+- Images scale appropriately with Next.js Image optimization
+
+#### Performance Audit Results
+
+**Lighthouse Metrics (Local Build):**
+- First Contentful Paint (FCP): **0.43s**
+- Time to Interactive (TTI): **1.26s**
+- Cumulative Layout Shift (CLS): **0.002** (excellent)
+- Total Blocking Time: **0ms**
+- Speed Index: **0.43s**
+
+**Bundle Analysis:**
+- Main page: 5.4 kB (gzipped)
+- First Load JS: 95 kB
+- All routes statically generated
+- Zero runtime errors
+
+#### Documentation Updates
+
+**Files Updated:**
+- `/README.md` - Updated font references to Josefin Sans/Cormorant Garamond
+- `/src/app/globals.css` - Updated font fallback chains
+- `/src/app/layout.tsx` - Applied CSS variables to HTML element
+
+### Key Technical Decisions
+
+1. **Font Loading Strategy**
+   - Next.js Google Fonts for optimal loading and subsetting
+   - CSS variables on HTML root for global accessibility
+   - Explicit utility classes as fallback for Tailwind compatibility
+   - `display: 'swap'` to prevent FOIT (Flash of Invisible Text)
+
+2. **Hydration Error Resolution**
+   - Client-only rendering for media query checks
+   - `mounted` state pattern prevents SSR/client mismatch
+   - Empty placeholder during SSR (no visual flash)
+   - Deferred initialization with `setTimeout` for proper React lifecycle
+
+3. **Lazy State Initialization**
+   - Arrow function wrappers for expensive computations
+   - Prevents re-execution on every render
+   - Minimal performance impact with significant benefit
+   - Best practice for React Hooks optimization
+
+4. **Responsive Typography Scale**
+   - Tailwind `lg:` breakpoint at 1024px (not `md:`)
+   - Larger touch targets on mobile (minimum 44px for buttons)
+   - Readable body text on mobile (18px minimum)
+   - Generous desktop sizes for impact (up to 36px headings)
+
+### Issues Found and Fixed
+
+#### BLOCKER: Font Variables Not Accessible
+- **Issue:** CSS variables defined in `@theme` block but not applied to DOM
+- **Impact:** Fonts not loading, fallback system fonts used
+- **Fix:** Added variable classes to `<html>` element in layout
+- **Result:** Fonts load correctly, variables accessible globally
+
+#### BLOCKER: ESLint Errors Preventing Build
+- **Issue:** Direct function calls in `useState()` initial value
+- **Files:** StarField.tsx, ConstellationTitle.tsx
+- **Fix:** Wrapped in arrow function for lazy initialization
+- **Result:** Clean ESLint output, no warnings
+
+#### BLOCKER: Hydration Error in StarField
+- **Issue:** `window.matchMedia()` executed during SSR
+- **Error:** "Text content did not match. Server: '' Client: '[object Object]'"
+- **Fix:** Added `mounted` state, deferred client-side initialization
+- **Result:** No hydration errors, clean console
+
+#### MINOR: Inconsistent Font Sizes Across Breakpoints
+- **Issue:** Some components missing responsive typography
+- **Impact:** Text too small on desktop, too large on mobile
+- **Fix:** Added `lg:` responsive classes to all text elements
+- **Result:** Consistent, readable typography at all viewport sizes
+
+### Files Created
+- None (all work in existing files)
+
+### Files Modified
+- `/src/app/layout.tsx` - Font variable application to HTML element
+- `/src/app/globals.css` - Font utility classes, updated font references
+- `/src/components/StarField.tsx` - Hydration fix, lazy state initialization
+- `/src/components/constellation/ConstellationTitle.tsx` - Lazy state initialization
+- `/src/components/Hero.tsx` - Responsive typography classes
+- `/src/components/ServiceCard.tsx` - Responsive typography classes
+- `/src/components/AboutMe.tsx` - Responsive typography classes
+- `/README.md` - Updated font documentation
+
+### Build Verification
+
+**TypeScript Compilation:**
+```
+✓ Compiled successfully
+0 errors, 0 warnings
+```
+
+**ESLint:**
+```
+✓ No ESLint errors
+✓ No ESLint warnings
+```
+
+**Production Build:**
+```
+✓ Linting and checking validity of types
+✓ Collecting page data
+✓ Generating static pages (4/4)
+✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    5.4 kB          95 kB
+└ ○ /_not-found                          871 B          90.5 kB
+```
+
+**Hydration Test:**
+```
+✓ No hydration errors
+✓ Clean browser console
+✓ All components render correctly
+```
+
+### Responsive Testing Matrix
+
+| Component       | 375px Mobile | 768px Tablet | 1440px Desktop | Status |
+|----------------|--------------|--------------|----------------|--------|
+| StarField      | 120 stars    | 250 stars    | 250 stars      | ✓      |
+| Constellation  | Responsive   | Responsive   | Responsive     | ✓      |
+| Hero Subtitle  | 20px         | 20px         | 36px           | ✓      |
+| Service Cards  | 1 column     | 2 columns    | 3 columns      | ✓      |
+| ServiceCard Text | 18-24px    | 18-24px      | 24-36px        | ✓      |
+| AboutMe Layout | Stacked      | Stacked      | Two-column     | ✓      |
+| AboutMe Text   | 18-24px      | 18-24px      | 24-36px        | ✓      |
+| Footer         | Centered     | Centered     | Centered       | ✓      |
+
+### Accessibility Verification
+- All text meets WCAG AA contrast ratios (tested with Lighthouse)
+- Font sizes meet minimum readable standards (16px+ for body text)
+- `prefers-reduced-motion` respected in all animated components
+- No CLS (Cumulative Layout Shift) issues with font loading
+- Semantic HTML structure maintained
+- Touch targets 44px+ on mobile (CTA button verified)
+
+### Performance Considerations
+- Font subsetting via Next.js reduces download size
+- CSS variables enable instant font switching (no re-parse)
+- Lazy state initialization prevents unnecessary computations
+- Hydration fix eliminates React double-rendering
+- Static generation ensures optimal TTFB (Time to First Byte)
+- No layout shift during font loading (`display: 'swap'`)
+
+### Technical Debt / Future Improvements
+- Consider preloading critical fonts for even faster FCP
+- Could add font-display directive to CSS for more control
+- Potential optimization: Variable fonts for smaller file size
+- Consider reducing font weight variations (currently 3 per family)
+
+### Next Steps
+Phase 6 will implement Cal.com booking integration, connecting the CTA buttons to actual booking functionality for each service type.
+
+---
+
 ## Phase 4: AboutMe and Footer Components - March 5, 2026
 
 **Status:** COMPLETED

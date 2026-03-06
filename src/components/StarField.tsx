@@ -55,7 +55,30 @@ interface CustomCSSProperties extends React.CSSProperties {
   '--translate-y'?: string;
 }
 
+// Helper function to generate stars (defined outside component)
+function generateStarsInitial(isMobile: boolean): Star[] {
+  const starCount = isMobile ? STAR_CONFIG.MOBILE_COUNT : STAR_CONFIG.DESKTOP_COUNT;
+  const generatedStars: Star[] = [];
+
+  for (let i = 0; i < starCount; i++) {
+    generatedStars.push({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: STAR_CONFIG.SIZES[Math.floor(Math.random() * STAR_CONFIG.SIZES.length)],
+      animationDelay: Math.random() * STAR_CONFIG.TWINKLE_DELAY_MAX,
+      animationDuration:
+        Math.random() * STAR_CONFIG.TWINKLE_DURATION_RANGE + STAR_CONFIG.TWINKLE_DURATION_MIN,
+      useTwinkleOff: Math.random() < STAR_CONFIG.TWINKLE_OFF_CHANCE,
+      opacity: Math.random() * STAR_CONFIG.OPACITY_RANGE + STAR_CONFIG.OPACITY_MIN,
+    });
+  }
+
+  return generatedStars;
+}
+
 export default function StarField() {
+  const [mounted, setMounted] = useState(false);
   const [stars, setStars] = useState<Star[]>([]);
   const [shootingStars, setShootingStars] = useState<ShootingStar[]>([]);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -137,21 +160,28 @@ export default function StarField() {
     setShootingStars((prev) => prev.filter((star) => star.id !== id));
   }, []);
 
-  // Initial setup: stars generation and motion preference detection
+  // Initial setup: generate stars, detect motion preference, handle resize
   useEffect(() => {
-    // Check for prefers-reduced-motion
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setPrefersReducedMotion(mediaQuery.matches);
+    // Defer state updates to avoid synchronous setState in effect
+    const timeout = setTimeout(() => {
+      // Mark component as mounted
+      setMounted(true);
+
+      // Check for prefers-reduced-motion
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      setPrefersReducedMotion(mediaQuery.matches);
+
+      // Generate stars based on initial screen size
+      const isMobile = window.innerWidth < STAR_CONFIG.MOBILE_BREAKPOINT;
+      setStars(generateStarsInitial(isMobile));
+    }, 0);
 
     // Listen for changes to motion preference
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const handleMotionPrefChange = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches);
     };
     mediaQuery.addEventListener('change', handleMotionPrefChange);
-
-    // Generate stars based on initial screen size
-    const isMobile = window.innerWidth < STAR_CONFIG.MOBILE_BREAKPOINT;
-    setStars(generateStars(isMobile));
 
     // Handle window resize with debouncing
     let resizeTimeout: NodeJS.Timeout;
@@ -171,11 +201,12 @@ export default function StarField() {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      clearTimeout(timeout);
       clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
       mediaQuery.removeEventListener('change', handleMotionPrefChange);
     };
-  }, [generateStars]);
+  }, [generateStars, stars.length]);
 
   // Trigger initial shooting star after 3-5 seconds (skip if reduced motion)
   useEffect(() => {
@@ -201,6 +232,16 @@ export default function StarField() {
 
     return () => clearInterval(interval);
   }, [prefersReducedMotion, createShootingStar]);
+
+  // Don't render stars until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <div
+        className="fixed inset-0 z-0 overflow-hidden pointer-events-none"
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <div
