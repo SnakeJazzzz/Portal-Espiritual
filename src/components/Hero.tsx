@@ -16,7 +16,7 @@ export default function Hero() {
   return (
     <section id="hero" className="relative z-10">
       {/* Constellation Section - Full Screen */}
-      <div className="min-h-screen flex items-center justify-center px-6">
+      <div className="min-h-screen flex items-center justify-center px-2 sm:px-6">
         <ConstellationTitle onAnimationComplete={handleAnimationComplete} />
       </div>
 

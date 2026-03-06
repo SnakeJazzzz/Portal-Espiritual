@@ -178,8 +178,8 @@ export default function ConstellationTitle({ onAnimationComplete }: Constellatio
   }, [constellation, prefersReducedMotion, onAnimationComplete]);
 
   return (
-    <div className="w-full flex justify-center px-6 sm:px-8">
-      <div className="w-[90%] sm:w-[85%] lg:w-[70%]">
+    <div className="w-full flex justify-center px-2 sm:px-8">
+      <div className="w-full sm:w-[85%] lg:w-[70%]">
         <svg
           viewBox={viewBox}
           className={`w-full h-auto transition-all duration-500 ${
