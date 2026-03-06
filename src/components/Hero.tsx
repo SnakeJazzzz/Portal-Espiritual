@@ -28,7 +28,7 @@ export default function Hero() {
       >
         {/* Subtitle */}
         <p
-          className="text-lg lg:text-xl text-portal-text/60 text-center max-w-xl mx-auto mb-24 animate-fade-in-up"
+          className="text-xl lg:text-4xl text-portal-text/60 text-center max-w-xl mx-auto mb-24 animate-fade-in-up"
           style={{ animationDelay: '0.2s' }}
         >
           {siteConfig.heroSubtitle}
@@ -63,7 +63,7 @@ export default function Hero() {
               onClick={() => {
                 // TODO: Integrate Cal.com booking modal
               }}
-              className="bg-transparent text-white font-heading font-medium text-lg py-4 px-12 rounded-xl w-full sm:w-auto"
+              className="bg-transparent text-white font-heading font-medium text-2xl lg:text-4xl py-4 px-12 rounded-xl w-full sm:w-auto"
             >
               Reservar tu sesión
             </button>

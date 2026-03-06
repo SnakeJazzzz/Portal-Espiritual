@@ -13,8 +13,8 @@
   --color-portal-card-border: rgba(255, 255, 255, 0.08);
 
   /* Font Families */
-  --font-family-heading: 'Space Grotesk', sans-serif;
-  --font-family-body: 'Outfit', sans-serif;
+  --font-family-heading: var(--font-heading-next), sans-serif;
+  --font-family-body: var(--font-body-next), serif;
 
   /* Backdrop Blur */
   --backdrop-blur-card: 16px;
@@ -30,6 +30,14 @@
   --animate-border-trace-right: border-trace-right 2s ease-in-out infinite 0.5s;
   --animate-border-trace-bottom: border-trace-bottom 2s ease-in-out infinite 1s;
   --animate-border-trace-left: border-trace-left 2s ease-in-out infinite 1.5s;
+}
+
+.font-heading {
+  font-family: var(--font-heading-next), 'Josefin Sans', sans-serif;
+}
+
+.font-body {
+  font-family: var(--font-body-next), 'Cormorant Garamond', serif;
 }
 
 /* Portal Espiritual Color Palette - CSS Variables for non-Tailwind usage */

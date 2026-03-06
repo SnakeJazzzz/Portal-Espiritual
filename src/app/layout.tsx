@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk, Outfit } from 'next/font/google';
+import { Josefin_Sans, Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
 
-const spaceGrotesk = Space_Grotesk({
-  variable: '--font-heading',
+const josefinSans = Josefin_Sans({
+  variable: '--font-heading-next',
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '700'],
   display: 'swap',
 });
 
-const outfit = Outfit({
-  variable: '--font-body',
+const cormorantGaramond = Cormorant_Garamond({
+  variable: '--font-body-next',
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
+  weight: ['300', '400', '600'],
   display: 'swap',
 });
 
@@ -33,10 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body
-        className={`${spaceGrotesk.variable} ${outfit.variable} bg-portal-black text-portal-text font-body antialiased overflow-x-hidden`}
-      >
+    <html lang="es" className={`${josefinSans.variable} ${cormorantGaramond.variable}`}>
+      <body className="bg-portal-black text-portal-text font-body antialiased overflow-x-hidden">
         {children}
       </body>
     </html>

@@ -40,14 +40,14 @@ export default function AboutMe() {
           {/* Text Column - appears first (top) on mobile */}
           <div className="flex-1 text-center lg:text-left">
             {/* Heading */}
-            <h2 className="text-2xl lg:text-3xl font-heading font-semibold text-white mb-6">
+            <h2 className="text-2xl lg:text-4xl font-heading font-semibold text-white mb-6">
               {siteConfig.aboutTitle}
             </h2>
 
             {/* Bio paragraphs */}
             <div className="space-y-4 mb-8">
               {bioParagraphs.map((paragraph, index) => (
-                <p key={index} className="text-base text-portal-text leading-relaxed">
+                <p key={index} className="text-lg lg:text-2xl text-portal-text leading-relaxed">
                   {paragraph}
                 </p>
               ))}
