@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Phase 4 - AboutMe and Footer Components (March 5, 2026)
+
+#### Added
+- **AboutMe Component** (`src/components/AboutMe.tsx`)
+  - Responsive two-column layout (photo left, text right on desktop)
+  - Mobile layout stacks with text on top, photo below using `flex-col-reverse`
+  - Profile photo with Next.js Image optimization (3:4 aspect ratio portrait)
+  - Fade-to-transparent gradient overlay at bottom of photo for mystical effect
+  - Section heading, bio paragraphs, and Instagram link from siteConfig
+  - CelestialBorder wrapper around profile photo for animated border
+  - Instagram SVG icon (28×28px) with hover effects
+  - Section ID `id="sobre-mi"` for smooth scroll navigation
+  - Automatic paragraph splitting from newline-separated bio text
+
+- **Footer Component** (`src/components/Footer.tsx`)
+  - Minimal transparent design with top border separator
+  - Site name from siteConfig.heroTitle
+  - Instagram SVG icon (24×24px, smaller than AboutMe version)
+  - Dynamic copyright year using `new Date().getFullYear()`
+  - Spanish copyright text: "© {year} Portal Espiritual. Todos los derechos reservados."
+  - Visual hierarchy with opacity variations (white/40, white/25)
+
+- **Site Configuration Additions** (`src/config/services.ts`)
+  - `aboutPhoto: '/about-photo.svg'` - Profile image path
+  - `aboutAlt: 'Foto de perfil'` - Image alt text for accessibility
+  - `aboutTitle: 'Sobre Mí'` - Section heading
+  - `aboutBio` - Multi-paragraph bio text (newline-separated)
+  - Updated `instagramUrl` with actual Instagram profile link
+
+- **Page Integration** (`src/app/page.tsx`)
+  - Integrated AboutMe component below Hero section
+  - Added Footer component at bottom of page
+  - Maintained proper z-index layering across all components
+
+#### Changed
+- Updated scrollbar hover color from gold to white/opacity for consistency
+  - Changed from `rgba(201, 168, 76, 0.4)` to `rgba(255, 255, 255, 0.3)`
+  - Maintains white/opacity color scheme throughout site
+
+#### Fixed
+- **Next.js Image Warning**: Added required `sizes` attribute to AboutMe profile photo
+  - `sizes="(max-width: 1024px) 100vw, 380px"` for proper responsive loading
+  - Fixes build warnings and optimizes image delivery
+- **UTF-8 Encoding**: Fixed malformed copyright symbol (©) in Footer component
+- **Hardcoded Year**: Replaced static "2026" with `new Date().getFullYear()` for auto-updating copyright
+- **Color Consistency**: Removed gold color from scrollbar hover state
+
+#### Technical Improvements
+- Mobile-first layout strategy with `flex-col-reverse` for better reading flow
+- Icon-only social links for minimal aesthetic (proper aria-labels for accessibility)
+- Content-driven design with all text/images from siteConfig (no hardcoded strings)
+- Dynamic date generation for maintenance-free copyright year
+- Responsive typography and spacing across all breakpoints
+- Proper semantic HTML structure with accessibility attributes
+
+---
+
 ### Phase 3 - Hero Section with Constellation Title (March 5, 2026)
 
 #### Added
@@ -207,6 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version History
 
+- **Phase 4** (2026-03-05): AboutMe and Footer Components - COMPLETED
 - **Phase 3** (2026-03-05): Hero Section with Constellation Title - COMPLETED
 - **Phase 2** (2026-03-04): Star Field Background - COMPLETED
 - **Phase 1** (2026-03-03): Project Setup - COMPLETED

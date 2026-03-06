@@ -48,9 +48,9 @@ export const siteConfig = {
   heroTitleLine1: 'Portal',
   heroTitleLine2: 'Espiritual',
   heroSubtitle: 'Conecta con tu guía interior',
-  aboutMe: {
-    photo: '/about-photo.jpg',
-    text: 'Placeholder text for about me section',
-  },
-  instagram: 'https://instagram.com/placeholder',
+  aboutPhoto: '/about-photo.svg',
+  aboutAlt: 'Foto de perfil',
+  aboutTitle: 'Sobre Mí',
+  aboutBio: 'Soy una guía espiritual dedicada a acompañarte en tu camino de autoconocimiento.\n\nA través del tarot, los registros akáshicos y sesiones uno a uno, te ayudo a conectar con tu sabiduría interior y encontrar claridad en los momentos que más lo necesitas.\n\nCada sesión es un espacio sagrado de escucha, presencia y transformación.',
+  instagramUrl: 'https://www.instagram.com/la_consciencia_colectiva?igsh=Z2o1eHpzc2Z3bXlj',
 };

@@ -200,7 +200,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--portal-gold);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Firefox Scrollbar */

@@ -1,5 +1,7 @@
 import StarField from '@/components/StarField';
 import Hero from '@/components/Hero';
+import AboutMe from '@/components/AboutMe';
+import Footer from '@/components/Footer';
 
 export default function Home() {
   return (
@@ -10,7 +12,11 @@ export default function Home() {
       {/* Main Content */}
       <main className="relative z-10">
         <Hero />
+        <AboutMe />
       </main>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
