@@ -5,9 +5,14 @@ import { siteConfig, services } from '@/config/services';
 import ServiceCard from '@/components/ServiceCard';
 import CelestialBorder from '@/components/CelestialBorder';
 import ConstellationTitle from '@/components/constellation/ConstellationTitle';
+import ServiceSelectionModal from '@/components/ServiceSelectionModal';
+import BookingModal from '@/components/BookingModal';
 
 export default function Hero() {
   const [animationComplete, setAnimationComplete] = useState(false);
+  const [selectionOpen, setSelectionOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [selectedSlug, setSelectedSlug] = useState('');
 
   const handleAnimationComplete = () => {
     setAnimationComplete(true);
@@ -60,9 +65,7 @@ export default function Hero() {
         >
           <CelestialBorder borderRadius="0.75rem" active={true}>
             <button
-              onClick={() => {
-                // TODO: Integrate Cal.com booking modal
-              }}
+              onClick={() => setSelectionOpen(true)}
               className="bg-transparent text-white font-heading font-medium text-2xl lg:text-4xl py-4 px-12 rounded-xl w-full sm:w-auto"
             >
               Reservar tu sesión
@@ -70,6 +73,24 @@ export default function Hero() {
           </CelestialBorder>
         </div>
       </div>
+
+      {/* Service Selection Modal */}
+      <ServiceSelectionModal
+        isOpen={selectionOpen}
+        onSelect={(slug) => {
+          setSelectedSlug(slug);
+          setSelectionOpen(false);
+          setBookingOpen(true);
+        }}
+        onClose={() => setSelectionOpen(false)}
+      />
+
+      {/* Cal.com Booking Modal */}
+      <BookingModal
+        isOpen={bookingOpen}
+        eventSlug={selectedSlug}
+        onClose={() => setBookingOpen(false)}
+      />
     </section>
   );
 }

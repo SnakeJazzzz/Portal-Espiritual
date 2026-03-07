@@ -43,7 +43,20 @@ export const services: Service[] = [
   },
 ];
 
-export const siteConfig = {
+export interface SiteConfig {
+  heroTitle: string;
+  heroTitleLine1: string;
+  heroTitleLine2: string;
+  heroSubtitle: string;
+  aboutPhoto: string;
+  aboutAlt: string;
+  aboutTitle: string;
+  aboutBio: string;
+  instagramUrl: string;
+  calcomUsername: string;
+}
+
+export const siteConfig: SiteConfig = {
   heroTitle: 'Portal Espiritual',
   heroTitleLine1: 'Portal',
   heroTitleLine2: 'Espiritual',
@@ -53,4 +66,5 @@ export const siteConfig = {
   aboutTitle: 'Sobre Mí',
   aboutBio: 'Soy una guía espiritual dedicada a acompañarte en tu camino de autoconocimiento.\n\nA través del tarot, los registros akáshicos y sesiones uno a uno, te ayudo a conectar con tu sabiduría interior y encontrar claridad en los momentos que más lo necesitas.\n\nCada sesión es un espacio sagrado de escucha, presencia y transformación.',
   instagramUrl: 'https://www.instagram.com/la_consciencia_colectiva?igsh=Z2o1eHpzc2Z3bXlj',
+  calcomUsername: 'portal-espiritual',
 };
