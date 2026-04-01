@@ -64,7 +64,7 @@ export const siteConfig: SiteConfig = {
   aboutPhoto: '/about-photo.svg',
   aboutAlt: 'Foto de perfil',
   aboutTitle: 'Sobre Mí',
-  aboutBio: 'Soy una guía espiritual dedicada a acompañarte en tu camino de autoconocimiento.\n\nA través del tarot, los registros akáshicos y sesiones uno a uno, te ayudo a conectar con tu sabiduría interior y encontrar claridad en los momentos que más lo necesitas.\n\nCada sesión es un espacio sagrado de escucha, presencia y transformación.',
+  aboutBio: 'Hola mi nombre es Juan Pablo y soy un mensajero divino y guía espiritual.\n\nMe dedico al camino de la exploración de la consciencia y el autoconocimiento.\n\nFunciono como un puente entre el mundo físico y el mundo espiritual y estoy al servicio de la Humanidad y el Universo.\n\nTe ayudo a conectar con tu esencia, a traer claridad y alineación a tu vida y a encarnar tu versión de mas alta vibración.\n\nTodo momento es divino, con amor JP.',
   instagramUrl: 'https://www.instagram.com/la_consciencia_colectiva?igsh=Z2o1eHpzc2Z3bXlj',
   calcomUsername: 'portal-espiritual',
 };
