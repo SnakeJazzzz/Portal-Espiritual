@@ -40,16 +40,12 @@ export default function Hero() {
         </p>
 
         {/* Service Cards Grid */}
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             {services.map((service, index) => (
               <div
                 key={service.id}
-                className={`animate-fade-in-up ${
-                  index === services.length - 1
-                    ? 'md:col-span-2 md:max-w-md md:mx-auto lg:col-span-1 lg:max-w-none'
-                    : ''
-                }`}
+                className="animate-fade-in-up"
                 style={{ animationDelay: `${0.4 + index * 0.2}s` }}
               >
                 <ServiceCard service={service} />

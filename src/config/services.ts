@@ -3,6 +3,9 @@
  * All service data, pricing, and site configuration lives here
  */
 
+// Placeholder for new Cal.com event slug - replace this value after creating the event in Cal.com
+const CAL_SLUG_ACTIVACION_CUANTICA = "TODO-REPLACE";
+
 export interface Service {
   id: string;
   name: string;
@@ -16,30 +19,39 @@ export interface Service {
 export const services: Service[] = [
   {
     id: 'lectura-de-cartas',
-    name: 'Lectura de Cartas',
+    name: 'Divinación de Cartas',
     duration: '30 min',
-    price: 500,
+    price: 555,
     currency: 'MXN',
-    description: '⁠Divinacion de cartas, un espacio donde interpretare el mensaje del universo acorde a tu pregunta o tu energía a travez de las cartas.',
+    description: 'Un espacio para hacer cualquier tipo de pregunta, revelar información oculta, entrar en detalle y analizar cualquier situación de vida, todo a través de las cartas.',
     calcomEventSlug: 'lectura-de-cartas',
   },
   {
     id: 'divinacion-akashica',
-    name: 'Lectura Akashica',
-    duration: '30 min',
-    price: 500,
+    name: 'Divinación Akáshica',
+    duration: '45 min',
+    price: 666,
     currency: 'MXN',
-    description: 'Entraremos en tu Akasha, los registros de tu alma donde interpretare la energía presente en tu campo áurico deliberando el divino mensaje que sea de alineación para ti en este momento.',
+    description: 'Entraremos en tu Akasha, los Registros Universales de tu Alma, donde conectaremos con tus otras vidas, tu misión y propósito de vida, líneas del tiempo para ti, sanar lazos kármicos y revelar cualquier otra información que sea de alineación con tu ser superior, tu historia a través del tiempo y el espacio.',
     calcomEventSlug: 'divinacion-akashica',
   },
   {
     id: 'uno-a-uno',
-    name: 'Divinación',
+    name: 'Divinación Clásica',
     duration: '60 min',
-    price: 800,
+    price: 888,
     currency: 'MXN',
-    description: 'Un espacio donde hablaremos uno-a-uno, conectaremos con tus ancestros, tus guías, tus ángeles y tu ser superior y abriremos un espacio sagrado para hablar de cualquier tema que sea de tu elección y yo estaré comunicándote los mensajes de tu equipo espiritual.',
+    description: 'Un espacio donde hablaremos uno a uno, conectaremos con tu ser superior, tus guías, ángeles, ancestros y cualquier otro ser divino que esté presente, un espacio para preguntar lo que gustes y yo estaré comunicándote cualquier información que sea de alineación para ti en ese momento de parte de tu equipo espiritual. Una lectura completa y profunda con un toque personalizado para ti.',
     calcomEventSlug: 'uno-a-uno',
+  },
+  {
+    id: 'activacion-cuantica',
+    name: 'Activación Cuántica',
+    duration: '60 min',
+    price: 1111,
+    currency: 'MXN',
+    description: 'Este servicio consta de una activación cuántica de tu poder superior alineado a cualquier aspecto personal de tu elección, meditaremos juntos por 30 minutos donde yo acompañado de tu equipo espiritual estaremos activando tu potencial infinito en cualquier área de tu vida que sea de tu elección. Platicaremos sobre tu intención para esta activación y luego entraremos en la meditación y finalizaremos con un último mensaje de tu equipo espiritual.',
+    calcomEventSlug:'activacion-cuantica',  // TODO: Replace with actual Cal.com event slug
   },
 ];
 
