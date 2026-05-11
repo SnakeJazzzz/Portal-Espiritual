@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-main-writes.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-rm-rf-absolute.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-force-push.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-env-writes.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-source-data-deletes.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

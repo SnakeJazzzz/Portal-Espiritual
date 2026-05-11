@@ -51,7 +51,7 @@ export const services: Service[] = [
     price: 1111,
     currency: 'MXN',
     description: 'Este servicio consta de una activación cuántica de tu poder superior alineado a cualquier aspecto personal de tu elección, meditaremos juntos por 30 minutos donde yo acompañado de tu equipo espiritual estaremos activando tu potencial infinito en cualquier área de tu vida que sea de tu elección. Platicaremos sobre tu intención para esta activación y luego entraremos en la meditación y finalizaremos con un último mensaje de tu equipo espiritual.',
-    calcomEventSlug:'activacion-cuantica',  // TODO: Replace with actual Cal.com event slug
+    calcomEventSlug:'activacion-cuantica', 
   },
 ];
 
