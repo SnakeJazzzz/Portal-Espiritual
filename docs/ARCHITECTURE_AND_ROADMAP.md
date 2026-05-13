@@ -1,477 +1,382 @@
-# Portal Espiritual — Architecture & Roadmap
+# Portal Espiritual — Arquitectura y Roadmap
 
-> **Propósito:** documentar QUÉ vamos a construir, CÓMO está diseñado para
-> escalar, y QUÉ viene en phases futuras. Este es el norte arquitectónico
-> del proyecto. Cuando una decisión técnica esté en duda, este documento
-> es la fuente de verdad para "¿esto encaja en el diseño?".
-
----
-
-## El principio rector
-
-**Estamos construyendo la primera capa de un sistema de suscripciones
-y productos, no solo "la feature de Mentoría".**
-
-Cada decisión de Phase 6 se evalúa contra esta pregunta: *¿esto sigue
-funcionando cuando agreguemos cursos y meditaciones por suscripción?*
-
-Si la respuesta es no, rediseñamos. Optimizar para un solo caso de uso
-hoy nos garantiza reescribir schemas en 6 meses.
+> **Propósito de este documento:** definir el QUÉ y el POR QUÉ del proyecto a
+> nivel arquitectónico, sin cerrar prematuramente decisiones de implementación.
+> Lo abierto se cierra en `/superpowers:brainstorming`. Lo cerrado aquí ES
+> input no-negociable al brainstorming.
+>
+> **Audiencia:** Claude Code (lee esto en cada sesión), developer (revisa
+> antes de planning), y futuros maintainers.
+>
+> **No es:** un plan de tasks, un design doc detallado, ni un schema final
+> de DB. Esos se generan downstream.
 
 ---
 
-## Phase 6 — Mentoría 1-a-1 (en planning)
+## 1. Qué estamos construyendo
 
-### Resumen del producto
+Portal Espiritual es una landing page de servicios espirituales del cliente
+Juan Pablo (guía espiritual). En producción en `portalespiritual.com.mx` via
+Vercel, auto-deploy desde `main`.
 
-- Suscripción mensual recurrente automática: **$2222 MXN/mes**
-- Cancelable por el suscriptor en cualquier momento
-- **8 spots máximo** (configurable)
-- Contador en vivo de spots restantes en la página principal
-- Datos personales del suscriptor recolectados al registro
+### Estado actual (Phases 1-5, en producción)
 
-### Lo que incluye el servicio (definido por el cliente)
+Cuatro servicios pagados y agendados vía Cal.com:
 
-- 2 sesiones privadas de 30 min al mes
-- Acceso a mensajes directos por Instagram
-- Plan personalizado de desarrollo consciente
+- Divinación de Cartas (30 min, $555 MXN)
+- Divinación Akáshica (45 min, $666 MXN)
+- Divinación Clásica (60 min, $888 MXN)
+- Activación Cuántica (60 min, $1111 MXN)
 
-**Las sesiones y la comunicación NO se gestionan desde el sitio web.**
-El cliente las maneja por fuera (Cal.com, Instagram DMs, calendario
-personal). El sitio web solo maneja: registro, pago, cancelación,
-email de agradecimiento, email al cliente con datos del nuevo suscriptor.
+Stack actual: Next.js 16 + React 19 + Tailwind v4. Site estático. Booking
+delegado a Cal.com embed.
 
----
+### Lo que viene: Phase 6 — Mentoría 1-a-1
 
-### Stack agregado en Phase 6
+Servicio nuevo con modelo de negocio distinto: **suscripción mensual recurrente**.
 
-| Capa | Tecnología | Por qué |
-|------|------------|---------|
-| DB | Vercel Postgres + Drizzle ORM | Schema relacional escalable. Drizzle = type-safe queries, migrations explícitas, ligero |
-| Pagos | Stripe Subscriptions | Solución estándar de la industria para recurring. Cuenta del cliente (la misma que usa Cal.com) |
-| Email | Resend | SDK simple para Next.js, free tier 3000 emails/mes |
-| Validación | Zod | Schema validation en API routes y forms |
-| Auth (mínima) | Magic link via email | Sin passwords. Link firmado con expiración corta |
+- Precio: $2222 MXN/mes
+- Capacidad: 8 spots máximo
+- Incluye (según copy del cliente): 2 sesiones privadas de 30 min al mes,
+  acceso a mensajes directos por Instagram, plan personalizado de desarrollo
+- Pago: Stripe Subscriptions (NO Cal.com)
+- Autenticación de suscriptores: magic link via email
+- Cuando se llenan los 8 spots: el botón muestra "Cupo lleno, regresa pronto".
+  Sin waitlist automatizada.
 
-### Costos mensuales esperados (8 suscriptores activos)
+### Lo que viene después (visión, no compromiso)
 
-| Servicio | Costo |
-|----------|-------|
-| Vercel Postgres (free tier hasta 0.5 GB) | $0 |
-| Resend (free tier 3000 emails/mes) | $0 |
-| Stripe fees (~3.6% + $3 MXN por cargo) | ~$560 MXN (revenue share) |
-| Vercel hosting | sin cambio |
-| **Total infra nueva** | **$0/mes fijo** |
+- **Phase 7**: Cursos pre-grabados
+- **Phase 8**: Meditaciones guiadas
+- **Phase 9**: Comunidad interna
 
----
-
-### Modelo de datos (diseñado para escalar)
-
-```
-products
-├── id (uuid, PK)
-├── slug (text, unique)          -- 'mentoria-1-a-1', 'curso-akashico', etc.
-├── name (text)
-├── description (text)
-├── product_type (enum)          -- 'subscription' | 'one_shot' | 'course'
-├── price_mxn_cents (int)        -- 222200 = $2222.00
-├── billing_interval (enum)      -- 'month' | 'year' | null (null = one-shot)
-├── max_capacity (int, nullable) -- 8 para mentoria, null para sin límite
-├── stripe_product_id (text)
-├── stripe_price_id (text)
-├── is_active (boolean)
-├── metadata (jsonb)             -- campos específicos por tipo de producto
-├── created_at, updated_at
-
-subscriptions
-├── id (uuid, PK)
-├── product_id (fk → products)
-├── subscriber_id (fk → subscribers)
-├── stripe_subscription_id (text, unique)
-├── stripe_customer_id (text)
-├── status (enum)                -- 'active' | 'canceled' | 'past_due' | 'incomplete'
-├── current_period_start, current_period_end (timestamp)
-├── canceled_at (timestamp, nullable)
-├── created_at, updated_at
-
-subscribers
-├── id (uuid, PK)
-├── email (text, unique)
-├── full_name (text)
-├── instagram_handle (text)
-├── phone (text)
-├── birth_date (date)
-├── birth_time (time, nullable)
-├── birth_place (text)
-├── consent_given_at (timestamp) -- LFPDPPP
-├── created_at, updated_at
-
-waitlist
-├── id (uuid, PK)
-├── product_id (fk → products)
-├── email (text)
-├── full_name (text)
-├── instagram_handle (text)
-├── created_at
-
-stripe_events                    -- para idempotency de webhooks
-├── id (text, PK)                -- stripe event_id
-├── type (text)                  -- e.g. 'checkout.session.completed'
-├── processed_at (timestamp)
-├── created_at
-```
-
-### Por qué este modelo escala
-
-**Phase 6 hoy:**
-```
-products: [{ slug: 'mentoria-1-a-1', product_type: 'subscription', max_capacity: 8 }]
-```
-
-**Phase 7 (cursos):** añadir rows a `products` con `product_type: 'course'`.
-Tablas nuevas `lessons` y `lesson_progress` para lo específico de cursos.
-**Nada se reescribe en Phase 6.**
-
-**Phase 8 (meditaciones por suscripción):** añadir rows a `products`
-con `product_type: 'subscription'` y `max_capacity: null`.
-Tablas `meditations` y `meditation_access` para ACL.
-**Nada se reescribe en Phase 6 ni 7.**
-
-El núcleo reusable es: `products` + `subscriptions` + `subscribers`.
+Todas estas phases comparten el mismo modelo: contenido digital con acceso
+controlado por suscripción o compra. Phase 6 sienta la base de
+**autenticación + control de acceso + cobros recurrentes** que las demás
+heredarán.
 
 ---
 
-### Flujo de UX
+## 2. Por qué este enfoque (principios arquitectónicos)
 
-```
-[ Home ]
-    │
-    │ Hero muestra ServiceCard especial "Mentoría 1-a-1"
-    │ con contador en vivo "Quedan X de 8 spots"
-    │
-    ▼
-[ Click en tarjeta o en modal de selección ]
-    │
-    ▼
-[ /mentoria ]
-    │ Página dedicada con detalles completos del programa
-    │ Botón "Reservar mi lugar"
-    │
-    ▼
-[ /mentoria/registro ]
-    │ Form con: Instagram, fecha de nac., hora de nac., lugar de nac.,
-    │ celular, email, checkbox de aviso de privacidad
-    │ Submit → POST /api/mentoria/checkout
-    │
-    ▼
-[ /api/mentoria/checkout ]
-    │ Valida datos con Zod
-    │ Verifica spots disponibles (transacción Postgres)
-    │ Crea Stripe Checkout Session (mode: 'subscription')
-    │ Guarda datos personales en sesión Stripe metadata
-    │ Redirige a Stripe Checkout
-    │
-    ▼
-[ Stripe Checkout ]
-    │ Usuario completa pago
-    │
-    ▼
-[ /mentoria/exito ]   ←  Success URL desde Stripe
-    │ Mensaje "Bienvenido. Te llegó un email."
-    │
-    ▼
-[ Webhook /api/webhooks/stripe ]   ← Async, idempotente
-    │ Verifica firma del webhook
-    │ Chequea stripe_events para idempotency
-    │ Si checkout.session.completed:
-    │   - INSERT subscriber + subscription en Postgres
-    │   - Manda email al suscriptor (agradecimiento + link a gestionar)
-    │   - Manda email al cliente (Juan Pablo) con todos los datos
-    │ Si customer.subscription.deleted o invoice.payment_failed:
-    │   - UPDATE subscription.status = 'canceled' (libera spot automáticamente)
-```
+Estos siete principios son no-negociables. Si alguna propuesta del
+brainstorming los viola, se rechaza o se justifica explícitamente por qué se
+viola.
 
-### Manejo de cupo lleno
+1. **Configuration over code.** Todo lo que el cliente podría querer editar
+   (precios, descripciones, slugs) vive en archivos de config tipados, no
+   hardcoded en componentes. Single source: `src/config/services.ts` para
+   servicios actuales; Phase 6 extiende o crea config análogo.
 
-Si al hacer click en "Reservar" o al cargar `/mentoria/registro` no
-hay spots:
-- Botón cambia a "Únete a la lista de espera"
-- Form más corto: email + nombre + Instagram
-- POST a `/api/mentoria/waitlist`
-- Cuando cancela alguien, el cliente contacta manualmente al siguiente
-  (no automatizamos invite-back en v1)
+2. **Single source of truth.** Una sola definición autoritativa por concepto.
+   Si "precio de mentoría" existe en 3 lugares, hay un bug esperando suceder.
 
-### Manejo de cancelación
+3. **Schema genérico, lógica específica.** El núcleo de DB
+   (products, subscriptions, subscribers, etc.) es agnóstico al tipo de
+   producto. Mentoría es UNA instancia de "producto con suscripción".
+   Cursos en Phase 7 será otra instancia. Sin reescribir el schema.
 
-- Link a `/mentoria/gestionar` en el email de agradecimiento y en footer
-- Usuario mete su email
-- Recibe magic link (válido 15 min)
-- Click → autenticado → redirige a **Stripe Customer Portal**
-- Stripe Customer Portal maneja: cancelar suscripción, actualizar tarjeta,
-  ver historial. Llave en mano, branded con logo del cliente.
+4. **Webhooks idempotentes siempre.** Stripe (y cualquier proveedor) puede
+   enviar el mismo evento múltiples veces. Procesarlos N veces debe dar el
+   mismo resultado que procesarlos 1 vez.
 
-### Aviso de privacidad (LFPDPPP)
+5. **Server components donde el dato es server-side.** Datos del usuario
+   logueado, estado de suscripción, info admin → server. Animaciones,
+   interacciones del DOM → client. Sin mezclar.
 
-- Página `/privacidad` con texto simple (~200 palabras)
-- Checkbox en form de registro: "He leído y acepto el [aviso de privacidad]"
-- Guardamos `consent_given_at` en `subscribers`
+6. **Mobile-first siempre.** Tráfico principal es in-app browser de Instagram
+   en móvil (375px primario). Cualquier UI que se rompa en mobile no se
+   merge.
+
+7. **No reescribir features previas para soportar futuras.** Phase 7 no debe
+   requerir tocar el código de Phase 6. Si lo requiere, el schema/diseño de
+   Phase 6 está mal y se corrige ANTES de empezar Phase 7.
 
 ---
 
-### Archivos que se crean en Phase 6
+## 3. Stack confirmado para Phase 6
 
-```
-NUEVOS:
-src/app/mentoria/page.tsx                    # landing del programa
-src/app/mentoria/registro/page.tsx           # form de 6 campos + consent
-src/app/mentoria/exito/page.tsx              # confirmación post-Stripe
-src/app/mentoria/gestionar/page.tsx          # entry point para magic link
-src/app/privacidad/page.tsx                  # aviso de privacidad
-src/app/api/mentoria/checkout/route.ts       # crear Stripe Checkout Session
-src/app/api/mentoria/waitlist/route.ts       # añadir a waitlist
-src/app/api/mentoria/portal/route.ts         # generar link a Stripe Customer Portal
-src/app/api/auth/magic-link/route.ts         # generar y validar magic links
-src/app/api/webhooks/stripe/route.ts         # webhook handler idempotente
+**Esto está cerrado. No es para discutir en brainstorming.**
 
-src/lib/db/schema.ts                         # drizzle schema
-src/lib/db/index.ts                          # drizzle client
-src/lib/db/queries.ts                        # query helpers (getSpotsAvailable, etc.)
-src/lib/stripe/client.ts                     # stripe sdk wrapper
-src/lib/stripe/checkout.ts                   # helpers para crear sessions
-src/lib/email/resend.ts                      # wrapper de Resend
-src/lib/email/templates/                     # templates de los 2 emails
-src/lib/validation/mentoria.ts               # zod schemas
+### Frontend (ya existe, se extiende)
 
-src/components/MentoriaCard.tsx              # tarjeta especial con contador
-src/components/MentoriaRegistroForm.tsx      # form client-side
-src/components/WaitlistForm.tsx              # form de waitlist
+- Next.js 16 App Router + React 19
+- TypeScript 5 strict
+- Tailwind CSS v4 (theme en `src/app/globals.css`)
+- Josefin Sans (headings) + Cormorant Garamond (body)
 
-drizzle/migrations/                          # SQL migrations versionadas
+### Backend / Datos (nuevo)
 
-MODIFICADOS:
-src/config/services.ts                       # añadir Mentoría con type='subscription'
-src/components/ServiceSelectionModal.tsx     # branch: subscription → router.push('/mentoria')
-src/components/Hero.tsx                      # añadir MentoriaCard al grid
-src/components/Footer.tsx                    # link a /privacidad y a /mentoria/gestionar
-.env.local.example                           # documentar nuevas env vars necesarias
+- **Database**: Neon Postgres, integración via Vercel Marketplace
+  (NO la legacy "Vercel Postgres"; Neon directamente, Vercel-Managed)
+- **ORM**: Drizzle
+- **Validación**: Zod
+- **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma
+  que Cal.com)
+- **Email transaccional**: Resend (cuenta del cliente, dominio verificado
+  `portalespiritual.com.mx`)
+- **Autenticación**: NextAuth con email provider (magic link). No
+  passwords, no OAuth en Phase 6.
 
-NUEVAS DEPS:
-- stripe
-- @vercel/postgres + drizzle-orm + drizzle-kit
-- resend
-- zod
-```
+### Hosting (ya existe)
 
-### Variables de entorno nuevas
-
-A configurar en Vercel Dashboard + `.env.local`:
-
-```
-DATABASE_URL                     # Postgres connection string
-STRIPE_SECRET_KEY                # del dashboard del cliente
-STRIPE_WEBHOOK_SECRET            # de la configuración del webhook endpoint
-STRIPE_MENTORIA_PRICE_ID         # price_xxx del producto en Stripe
-RESEND_API_KEY                   # de la cuenta del developer
-RESEND_FROM_EMAIL                # ej: 'Portal Espiritual <hola@portal-espiritual.com>'
-CLIENT_NOTIFICATION_EMAIL        # email de Juan Pablo para alertas
-NEXT_PUBLIC_SITE_URL             # https://portal-espiritual.com
-MAGIC_LINK_SECRET                # random 32-byte hex para firmar links
-```
+- Vercel, plan Pro, auto-deploy desde `main`
+- Dominio: `portalespiritual.com.mx` (GoDaddy DNS, A record a Vercel)
+- Vercel CLI + `vercel env pull` para sincronizar env vars locales
 
 ---
 
-### Riesgos y mitigaciones
+## 4. Alcance de Phase 6
 
-| Riesgo | Mitigación |
-|--------|------------|
-| Migrations en producción | Sin CI/CD en Phase 6 — corremos manual con plan. CI/CD se monta antes de Phase 7. |
-| Webhook idempotency | Tabla `stripe_events` chequea `event_id` antes de procesar. |
-| Race condition en último spot | Transacción Postgres con check de capacity dentro de la transacción. |
-| Test de pago real | Cobro real de $1 MXN end-to-end antes de marcar done. Luego refund. |
-| Borrar datos personales (LFPDPPP) | Phase 6: script manual de delete-by-email. Phase 6.5: UI en admin. |
+Modo de lanzamiento: **completo, no MVP**. Esto significa que Phase 6 incluye
+tanto el flujo del suscriptor como el panel admin desde el inicio.
 
----
+### Flujo del suscriptor (público)
 
-### Criterios de "feature done" para Phase 6
+1. Usuario llega a `/mentoria` (página nueva)
+2. Ve el servicio, sus beneficios, precio, y estado de cupo
+3. Si hay cupo → botón "Suscribirme" → checkout
+4. Si no hay cupo → botón "Cupo lleno, regresa pronto" (deshabilitado)
+5. Después del pago exitoso → email de bienvenida + acceso a su panel
+6. En su panel (`/cuenta` o similar): ve info de su suscripción, sesiones
+   restantes, datos personales (editables), y opción de cancelar
 
-- [ ] Build local exitoso, 0 errores TS / ESLint
-- [ ] Schema migrado a Postgres en producción
-- [ ] Webhook de Stripe configurado con secret y endpoint
-- [ ] Productos creados en Stripe con price_id correctos
-- [ ] Resend dominio verificado
-- [ ] Test de pago real ($1 MXN) exitoso end-to-end
-- [ ] Email al suscriptor llegó
-- [ ] Email al cliente llegó con datos correctos
-- [ ] Spot decrementa en home tras suscripción
-- [ ] Cancelación libera spot
-- [ ] Magic link funciona
-- [ ] Customer Portal accesible
-- [ ] Waitlist funciona cuando cupo lleno
-- [ ] `/privacidad` accesible
-- [ ] Aviso de privacidad mencionado en footer
-- [ ] Build de Vercel verde
-- [ ] Mobile rendering verificado (375px Instagram in-app)
+### Flujo del admin (Juan Pablo)
 
----
+1. Login via magic link al email registrado
+2. Panel admin (`/admin` o similar) protegido por rol
+3. Ve lista de suscriptores: activos, inactivos, fecha de inicio, monto pagado
+4. Por cada suscriptor puede:
+   - Ver detalles completos (incluyendo info personal)
+   - Editar info del suscriptor (nombre, contacto, notas internas)
+   - Ver y modificar el número de sesiones restantes del mes
+   - Agregar sesiones extra (cortesía, regalo, compensación)
+   - Ver historial de pagos
+   - Marcar suscriptor como inactivo manualmente
+5. Lista de usuarios inactivos separable / filtrable
 
-### Alcance del admin en Phase 6 (decisión brainstorming 2026-05-12)
+### Lo que NO está en Phase 6 (explícito)
 
-Phase 6 **sí incluye un admin mínimo** — sin él, Juan Pablo no tiene
-forma observable de saber cuántos suscriptores activos tiene ni de
-ajustar `sessions_remaining` manualmente. Lo que va y lo que no va:
-
-**Incluido en Phase 6 (admin mínimo):**
-
-- `/admin` — lista de suscriptores con columnas: nombre, email,
-  fecha inicio, sesiones restantes, status. Toggle "ver canceladas".
-- `/admin/[id]` — vista de detalle read-only excepto:
-  - Input inline numérico para ajustar `sessions_remaining`
-    (registrado en `audit_log`)
-  - Botón "Cancelar suscripción" (Stripe API con
-    `cancel_at_period_end = true`)
-  - Link directo al Customer en Stripe Dashboard
-
-**Diferido a Phase 6.5 (admin completo, ver siguiente sección):**
-
-- Edición de campos del suscriptor (nombre, email, IG, etc) — en
-  Phase 6 se cambian por SQL si surge necesidad (≤8 suscriptores).
-- Notas internas del admin
-- Pause subscription
-- Búsqueda, ordenamiento custom, exportación CSV
-- UI propia de historial de pagos (existe en Stripe Dashboard)
-- LFPDPPP delete-by-email UI (en Phase 6: script manual)
-- Métricas / churn rate / spots ocupados visual
-- Lista de waitlist con marcar-como-notificado
-
-Spec de referencia: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md` §9.
+- Lista de espera automatizada
+- Notificaciones push o SMS
+- Integración de las sesiones con calendario (Cal.com u otros) — las
+  sesiones se agendan por fuera, el panel solo cuenta cuántas le quedan
+- Reportes / analytics / métricas más allá de "lista de suscriptores"
+- Multi-admin (solo Juan Pablo es admin)
+- Cambio de plan / upgrade / downgrade
+- Trials gratuitos, cupones, descuentos
+- Facturación con datos fiscales (CFDI, etc.)
+- Cursos, meditaciones, comunidad (Phase 7+)
 
 ---
 
-## Phase 6.5 — Admin dashboard completo (post-Phase 6, antes de Phase 7)
+## 5. Requisitos transversales (aplican a todo Phase 6)
 
-**Relación con Phase 6:** Phase 6 ya entrega un admin *mínimo*
-(lista + cancel + edit sessions; ver "Alcance del admin en Phase 6"
-arriba). Phase 6.5 expande ese admin a CRM completo. Es expansión,
-no construcción desde cero.
+### Privacidad y legal
 
-**Cuando se hace:** cuando el cliente reporte fricción manejando
-suscriptores manualmente, o antes de Phase 7 si se considera necesario.
+- **LFPDPPP** (México): cualquier formulario que recolecte datos personales
+  necesita aviso de privacidad accesible. Phase 6 incluye crear `/privacidad`.
+- Datos sensibles (tarjetas, etc.) NUNCA tocan nuestra DB — viven en Stripe.
+- Email del suscriptor es PII pero necesario; se almacena en DB con cuidado
+  estándar (no se loguea en consola, no se expone en URLs).
 
-### Funcionalidad (delta sobre el admin mínimo de Phase 6)
+### Confiabilidad
 
-- Edición inline de datos del suscriptor (nombre, IG, teléfono, etc)
-- Notas internas del admin con editor
-- Pause subscription (Stripe `pause_collection`)
-- Búsqueda y filtros custom, exportación CSV
-- UI de historial de pagos (vs link a Stripe Dashboard en Phase 6)
-- LFPDPPP delete-by-email con UI
-- Lista de waitlist con marcar-como-notificado
-- Métricas básicas: spots ocupados, churn rate, MRR
+- Webhooks de Stripe idempotentes (regla 4 arriba)
+- Manejo de race conditions en el flujo de checkout (qué pasa si dos
+  usuarios pagan simultáneamente y solo queda 1 spot — esto se discute en
+  brainstorming)
+- Si un webhook falla, debe ser reintentable sin efectos secundarios
 
-### Estimación
+### Testing
 
-3-5 días bien planeados. Phase 6 prepara el terreno (DB, queries, auth);
-6.5 es mayormente UI.
+- Tests del spec (lo que debe pasar), no del code (cómo está implementado)
+- Tests aislados, no contaminan DB de producción
+- Test end-to-end del flujo crítico (suscripción → webhook → email →
+  acceso al panel) antes de merge
+
+### Operacional
+
+- Test de cobro real en live mode de Stripe ($1 MXN end-to-end, luego
+  refund) antes de declarar Phase 6 "done"
+- Antes del cobro real: Juan Pablo informado de la decisión fiscal
+  (registro SAT vs no registrado), responsabilidad suya
 
 ---
 
-## Phase 7 — Cursos (futuro)
+## 6. Decisiones explícitamente abiertas (input al brainstorming)
 
-**Cuando se hace:** cuando Mentoría esté estable y el cliente quiera
-expandir a contenido grabado.
+Estas son las decisiones que NO se cierran aquí. El brainstorming debe
+producir respuesta concreta para cada una. Si encuentra más, las agrega a
+su propio spec.
 
-### Funcionalidad esperada
+### Sobre el modelo de datos
 
-- Catálogo de cursos en `/cursos`
-- Cada curso es un `product` con `product_type: 'course'`
-- Pago one-shot (no recurrente) por curso, o bundle por suscripción
-- Reproductor de video (Mux, YouTube unlisted, o Cloudflare Stream)
-- Tracking de progreso por suscriptor (`lesson_progress` table)
-- ACL: suscriptor solo accede a cursos comprados
+- **D1**: ¿El schema arranca completo (todas las tablas de phases futuras
+  incluidas) o incremental (solo lo que Phase 6 necesita, expandible)?
+- **D2**: ¿Cómo modelar "8 spots"? ¿Conteo dinámico de suscriptores activos?
+  ¿Campo `capacity` en `products`? ¿Lock pesimista al momento del checkout?
+- **D3**: ¿Cómo se representa "sesiones restantes del mes"? ¿Contador que
+  decrementa? ¿Tabla de sesiones individuales con `used_at`? ¿Reset
+  automático en cada renovación?
+- **D4**: ¿Roles de usuario simples (`subscriber` vs `admin`) o algo más
+  flexible (permisos granulares)?
 
-### Tablas nuevas
+### Sobre el flujo de checkout
+
+- **D5**: ¿Stripe Checkout hosted (redirige al dominio de Stripe) o Stripe
+  Elements embebido (todo en nuestra página)? Trade-offs de UX, costo de
+  integración, riesgo PCI.
+- **D6**: ¿Qué pasa si el usuario cierra el checkout sin pagar?
+- **D7**: ¿Qué pasa si paga pero el webhook tarda en llegar (latencia
+  Stripe → nosotros)?
+- **D8**: ¿Qué pasa si paga pero el spot 8 fue tomado por otro usuario
+  simultáneamente?
+
+### Sobre autenticación
+
+- **D9**: ¿Magic link emite sesión de cuánto tiempo? (1 día / 7 días / 30
+  días / hasta logout)
+- **D10**: ¿Mismo magic link para suscriptor que para admin, distinguidos
+  por rol en DB? ¿O endpoints separados?
+- **D11**: Si el suscriptor cancela y se re-suscribe meses después con el
+  mismo email, ¿es el mismo usuario o uno nuevo? ¿Conserva su historial?
+
+### Sobre el panel admin
+
+- **D12**: ¿Cuándo Juan Pablo "agrega sesiones extra" a un suscriptor, eso
+  queda auditable? ¿Hay log de cambios?
+- **D13**: ¿Editar info del suscriptor genera notificación al suscriptor?
+- **D14**: ¿"Marcar inactivo" manualmente cancela también la suscripción
+  en Stripe, o solo en nuestra DB?
+
+### Sobre el panel del suscriptor
+
+- **D15**: ¿El suscriptor puede editar SU email? Eso es delicado — el email
+  es su identidad de login. Si lo cambia, ¿se invalida la sesión?
+- **D16**: ¿Cancelar la suscripción es inmediato o al final del período
+  pagado? (Stripe soporta ambos.)
+
+### Sobre la implementación
+
+- **D17**: ¿Migraciones de Drizzle se corren manualmente o automáticamente
+  en deploy? ¿Cómo se rollback?
+- **D18**: ¿Cuánto del código de Phase 6 vive en `/api/*` (Next.js API
+  routes) vs Server Actions vs Server Components?
+- **D19**: ¿Cómo se estructura el código para que Phase 7 (cursos) pueda
+  reusar la mayor parte sin duplicar?
+
+### Sobre testing
+
+- **D20**: ¿Qué casos críticos requieren test E2E con Stripe test mode vs
+  cuáles bastan con mocks?
+- **D21**: ¿Hay tests que requieran Vercel Preview Branching de la DB? ¿O
+  todos pueden correr con SQLite en memoria / Postgres local?
+
+---
+
+## 7. Roadmap macro (visión, no compromiso)
+
+Las phases futuras se documentan aquí para que las decisiones de Phase 6 no
+las cierren accidentalmente, no porque ya estén planeadas en detalle.
+
+### Phase 6.5 (post-launch, ajustes)
+
+Mejoras al panel admin basadas en uso real. Optimizaciones de performance.
+Refactor de cosas que en Phase 6 se hicieron "bien-suficiente".
+
+### Phase 7: Cursos pre-grabados
+
+- Producto NO recurrente (one-off purchase)
+- Acceso permanente al contenido tras la compra
+- Hosting de video (proveedor por decidir)
+- Sistema de progreso ("cuánto llevo del curso")
+
+### Phase 8: Meditaciones guiadas
+
+- Producto recurrente (suscripción mensual) similar a mentoría pero con
+  acceso a librería de meditaciones (audio/video)
+- Sin límite de spots
+- Probable que comparta el panel del suscriptor con Phase 6
+
+### Phase 9: Comunidad interna
+
+- Foro / chat para suscriptores activos
+- Más complejo en cuanto a moderación, real-time, etc.
+- Posiblemente integrar herramienta externa (Discord, Circle.so) en vez de
+  construir
+
+**Implicación para Phase 6**: el schema debe permitir un usuario tener
+múltiples suscripciones simultáneas (mentoría + meditaciones), múltiples
+compras one-off (cursos), y métricas separadas por producto. Esto es
+exactamente lo que el principio 3 ("schema genérico") busca.
+
+---
+
+## 8. Estructura de carpetas (estado actual y dónde crece)
 
 ```
-lessons
-├── id, product_id (fk → products), title, video_url, order_index, duration_seconds
-
-lesson_progress
-├── id, subscriber_id, lesson_id, completed_at, watch_time_seconds
+src/
+├── app/
+│   ├── layout.tsx              # Root layout + fonts
+│   ├── page.tsx                # Home (existente)
+│   ├── globals.css             # Tailwind theme + animations
+│   ├── privacidad/             # Phase 6 (nuevo): aviso de privacidad
+│   ├── mentoria/               # Phase 6 (nuevo): landing del servicio
+│   ├── cuenta/                 # Phase 6 (nuevo): panel del suscriptor
+│   ├── admin/                  # Phase 6 (nuevo): panel admin
+│   └── api/                    # Phase 6 (nuevo): webhooks, auth, etc.
+├── components/                 # Componentes existentes + nuevos de Phase 6
+├── config/
+│   └── services.ts             # Single source para servicios actuales
+├── lib/                        # Phase 6 (nuevo): db, stripe, email, auth
+└── db/                         # Phase 6 (nuevo): schema, migrations
 ```
 
-### Decisiones a tomar entonces
-
-- Proveedor de video: Mux (mejor DX, pago por minuto) vs Cloudflare Stream
-  (precio fijo, más simple) vs YouTube unlisted (gratis, peor control)
-- DRM o no
-- Si la suscripción de cursos es bundle ($X/mes da acceso a todos) o
-  per-course
+La estructura exacta de `lib/`, `db/`, y los nombres de archivos se decide
+en brainstorming + writing-plans.
 
 ---
 
-## Phase 8 — Meditaciones guiadas por suscripción (futuro)
+## 9. Cómo se usa este documento
 
-**Cuando se hace:** después de Phase 7, si hay demanda.
+### Antes de brainstorming
 
-### Funcionalidad esperada
+Claude Code lo lee como contexto. NO genera código en base a este doc; lo
+usa para entender el QUÉ y el POR QUÉ. El CÓMO sale del brainstorming.
 
-- Suscripción mensual da acceso a librería de meditaciones (audio + video)
-- Releases periódicos (1 nueva por semana, etc.)
-- Notificaciones de nuevas meditaciones (email vía Resend)
+### Durante brainstorming
 
-### Tablas nuevas
+Si una propuesta viola un principio (sección 2) o asume algo que está en
+las "decisiones abiertas" (sección 6), Claude Code lo señala. El brainstorming
+NO cierra decisiones que el roadmap quiso dejar abiertas, las refina y las
+resuelve concretamente.
 
-```
-meditations
-├── id, title, description, audio_url, video_url, duration_seconds,
-│   release_date, is_subscriber_only
+### Después de brainstorming
 
-meditation_access  (opcional, si access es por meditación individual)
-├── id, subscriber_id, meditation_id, accessed_at
-```
+Si el brainstorming reveló que algún supuesto del roadmap estaba mal, se
+actualiza ESTE documento en una branch chore/ separada antes de empezar
+writing-plans.
 
-### Diseño que aprovecha el modelo existente
+### Durante writing-plans
 
-Suscripción de meditaciones es un nuevo row en `products`:
-```
-{ slug: 'meditaciones-mensual', product_type: 'subscription',
-  max_capacity: null, price_mxn_cents: 49900, billing_interval: 'month' }
-```
-
-Suscriber compra → `subscriptions` con `status='active'` → middleware
-de auth chequea si tiene suscripción activa para acceder a `/meditaciones/*`.
+El plan referencia este doc para justificar decisiones de tasks. "Por qué
+esta task existe" debe rastrearse a una sección de este doc + la
+conclusión del brainstorming.
 
 ---
 
-## Principios arquitectónicos del proyecto
+## 10. Estado actual del repo (al cierre del setup AI workflow + cuentas)
 
-1. **Configuration over code.** Todo lo editable por el cliente, en config o DB.
-2. **Single source of truth.** Para servicios actuales: `src/config/services.ts`.
-   Para productos de Phase 6+: tabla `products` en Postgres.
-3. **Schema genérico, lógica específica.** El núcleo de DB (products,
-   subscriptions, subscribers) es agnóstico al tipo de producto. La
-   lógica específica vive en API routes y componentes específicos.
-4. **Webhooks idempotentes siempre.** Cualquier integración con Stripe,
-   Resend, o futuros providers procesa eventos exactly-once.
-5. **Server components donde el dato es server-side.** Counter de spots,
-   listas de productos, dashboards admin. Client components solo donde
-   hay interactividad real.
-6. **Mobile-first siempre.** Instagram in-app browser primero, desktop
-   después.
-7. **No reescribir features previas para soportar futuras.** Si una
-   feature nueva requiere romper algo viejo, parar y rediseñar el plan.
-
----
-
-## Por dónde NO crecer
-
-Estas son tentaciones a evitar mientras no haya razón fuerte:
-
-- **No** auth con passwords. Magic links cubren todo lo que necesitamos.
-- **No** dashboard admin con permisos granulares. Un admin (Juan Pablo) basta.
-- **No** internacionalización (i18n). El sitio es 100% en español.
-- **No** mobile app nativa. PWA si acaso, en Phase 9+.
-- **No** AI/ML features. El sitio es content + commerce, no ML.
-- **No** real-time (websockets) salvo necesidad real (live sessions sería
-  caso válido en Phase 10+).
-- **No** microservicios. Todo Next.js monolítico hasta que duela.
+- Branch `main`: setup AI workflow instalado (hooks + CLAUDE.md + MCPs +
+  Superpowers). Sitio en producción sin cambios funcionales desde Phases
+  1-5.
+- Cuentas externas configuradas:
+  - Stripe: test mode listo, producto "Mentoría 1-a-1" creado con price
+    recurrente mensual de $2222 MXN
+  - Resend: dominio `portalespiritual.com.mx` verificado, API key activa
+  - Neon: DB `portal-espiritual-db` creada vía Vercel Marketplace,
+    preview branching activo
+- `.env.local` completo con todas las vars necesarias para arrancar
+  desarrollo
+- Pendiente: brainstorming → writing-plans → execution de Phase 6
