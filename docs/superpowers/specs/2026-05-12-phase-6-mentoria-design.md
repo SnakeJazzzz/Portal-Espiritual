@@ -1,6 +1,6 @@
 # Phase 6 — Mentoría 1-a-1: Design Spec
 
-**Status:** draft v2, pending user review (incorporates 16 review issues from review B5)
+**Status:** draft v3, approved by user (v2 approved with 4 polish follow-ups; v3 applies them)
 **Date:** 2026-05-12
 **Authors:** brainstorming session (Claude Opus + Michael)
 **Predecessor docs:** `docs/ARCHITECTURE_AND_ROADMAP.md`, `docs/PROJECT_CONTEXT.md`
@@ -211,7 +211,7 @@ Per-IP rate limit counter for `POST /api/auth/login` (and any future rate-limite
 
 Index: `(endpoint, ip, attempted_at desc)` to support `WHERE endpoint=$1 AND ip=$2 AND attempted_at > now() - interval '60 seconds'` efficiently.
 
-Periodic cleanup: rows older than 1 hour are deleted by a low-frequency cron (e.g. daily Vercel cron job calling `DELETE FROM rate_limit_attempts WHERE attempted_at < now() - interval '1 hour'`). Not critical for correctness — only for keeping the table small.
+**Cleanup (N4 — closed for Phase 6):** no cron job in Phase 6. The table is allowed to grow unboundedly. At Phase 6 scale (≤8 subscribers, very low `/api/auth/login` volume — JP logs in occasionally, subscribers log in only after the welcome email or weeks later to manage payment), the table will accumulate at most a handful of rows per month. Add a cleanup cron (e.g. daily `DELETE FROM rate_limit_attempts WHERE attempted_at < now() - interval '1 hour'`) in Phase 6.5 **only if** the table grows past ~10k rows in real operation. Not critical for correctness — only for table size.
 
 ---
 
@@ -648,6 +648,8 @@ Resend's send call succeeds (queued) but the message bounces afterward, OR Resen
 - Resend webhook for bounce → set to `'bounced'` (Phase 6 minimal: skip Resend webhooks entirely; rely on JP noticing via "user never logged in" + admin retry button. Phase 6.5 may add Resend bounce webhook.)
 - Admin panel `/admin/[id]` displays the `welcome_email_status` and shows a button "Reenviar welcome email" that re-generates a magic link and re-sends. Idempotency is per-click (creates a new auth_token).
 
+**Resend semantics (N3):** clicking "Reenviar welcome email" **overwrites** the current `welcome_email_status` value (transition: previous status → `pending` immediately on click → `sent` or `failed` after the Resend call returns). No history of prior send attempts is retained in Phase 6 — there is no `welcome_email_attempts` table or counter. If JP needs to know whether the user has ever logged in, the `sessions` table answers that more directly. If a resend-history audit trail surfaces as a real need post-launch, Phase 6.5 can add it.
+
 **Trade-off accepted:** if the welcome email persistently bounces (typo'd email captured by Stripe Checkout), the subscriber has paid but cannot self-serve login. JP intervenes manually via admin panel (resend email after correcting via SQL, or refund + cancel). For 8-spot Phase 6 this is acceptable. Phase 6.5 should add automated bounce handling.
 
 ### 13.4 Stripe API failure during refund (C2)
@@ -659,7 +661,7 @@ If during the race-condition handler (§5.1) or the duplicate-subscription handl
 - The cancel call (`'<event.id>:cancel'`) is also idempotent — replays are no-ops once succeeded.
 - If after Stripe's retry window (3 days) the refund is still failing (e.g. payment was already disputed by user, account-level Stripe issue), the event ends up in Stripe Dashboard → Events → Failed. JP gets a Stripe email alert. Manual recovery: JP issues refund manually from Stripe Dashboard.
 
-Add column `refund_status` to `stripe_events` payload-derived view (or a separate `pending_refunds` table — decision deferred to writing-plans). The admin panel should surface any `stripe_events` rows where the handler ultimately failed, so JP can resolve them manually. The exact UI is Phase 6.5 — for Phase 6 the alerting is via Stripe's own dashboard.
+**Observability in Phase 6: no new column, no new table.** A failed event has no `stripe_events` row in our DB by construction (§13.2: the row is the commit point). The difference between events received in Stripe Dashboard and rows in our `stripe_events` table reveals failures unambiguously. Combined with Stripe's own failed-event alert email to JP, this is sufficient for Phase 6's scale. If operational friction surfaces in real use, Phase 6.5 can add a `pending_refunds` table or a `refund_status` view-derived column; we do not pre-build it.
 
 ---
 
@@ -728,11 +730,11 @@ Tests verify **observable behavior** — what a hypothetical operator querying t
 
 1. **Webhook happy path:**
    Given: empty DB. Fire `checkout.session.completed` event.
-   Assert: a `subscribers` row exists for the buyer's email. A `subscriptions` row exists with `status='active'`, `sessions_remaining=2`, and `welcome_email_status='sent'`. An `auth_tokens` row exists for that subscriber. A welcome email was delivered to the buyer's email (verify via test Resend mailbox or mock).
+   Assert: a `subscribers` row exists for the buyer's email. A `subscriptions` row exists with `status='active'`, `sessions_remaining=2`, and `welcome_email_status='sent'`. A welcome email was delivered to the buyer's email (verify via test Resend mailbox or mock). The email contains a magic-link URL that, when visited, authenticates the user and redirects to `/cuenta/perfil` (the first-visit form, because their profile is empty). Internal token storage is not asserted — only that the user-facing flow ends in an authenticated session.
 
 2. **Capacity race (full cap):**
-   Given: DB seeded with 8 rows in `subscriptions` with `status='active'`. Fire a 9th `checkout.session.completed` event for a new email.
-   Assert: DB still has exactly 8 `active` subscription rows (no new row for the 9th user). The 9th user does **not** have an `auth_tokens` row. A race-condition email was delivered to the 9th user's email address (verify content offers waitlist link). The new user's `subscribers` row may or may not exist (acceptable either way — both compliant) but if it exists, no `subscriptions` row attaches to it.
+   Given: DB seeded with 8 rows in `subscriptions` with `status='active'`. Fire a 9th `checkout.session.completed` event for a new email (the event payload represents a successful payment, with `payment_intent` populated).
+   Assert: DB still has exactly 8 `active` subscription rows (no new row for the 9th user). A race-condition email was delivered to the 9th user's email address (content offers waitlist link). **The payment was refunded** — the test must verify the refund is reflected in the external payment state, not just that our handler "tried" to refund. Exact verification mechanism is left to writing-plans (real Stripe test-mode refund query, or a high-fidelity mock that tracks payment_intent state); the test is not valid unless this external-state assertion exists. The new user's `subscribers` row may or may not exist (acceptable either way — both compliant); if it exists, no `subscriptions` row attaches to it.
 
 3. **Capacity with mixed statuses (B2):**
    Given: DB seeded with 5 active + 3 canceled subscriptions for the product. Fire a new `checkout.session.completed` event.
@@ -740,7 +742,7 @@ Tests verify **observable behavior** — what a hypothetical operator querying t
 
 4. **Webhook idempotency (replay):**
    Given: clean DB. Fire `checkout.session.completed` twice with the same `event.id`.
-   Assert: DB has exactly 1 subscription row, 1 subscriber row, 1 auth_token row, exactly 1 welcome email delivered.
+   Assert: DB has exactly 1 `subscriptions` row and 1 `subscribers` row. Exactly 1 welcome email was delivered (counted via the test Resend mailbox or send-mock invocations). Auth-token storage is internal and not asserted here.
 
 5. **Magic-link verify is single-use:**
    Given: a valid unconsumed token in `auth_tokens`.
@@ -846,7 +848,6 @@ Per `ARCHITECTURE_AND_ROADMAP.md §5`:
 - Exact env-var names and their secrets handling per Vercel environment
 - First migration must enable Postgres extensions: `citext` (for case-insensitive email) and `pgcrypto` (if using `gen_random_uuid()`)
 - Whether `welcome_email_status` needs Resend bounce-webhook integration in Phase 6 or stays manual until 6.5
-- Whether the rate_limit_attempts cleanup runs as a Vercel cron job or is deferred (size-driven decision)
 
 ---
 
@@ -864,7 +865,16 @@ Per `ARCHITECTURE_AND_ROADMAP.md §5`:
 
 ## 19. Revision history
 
-### v2 — 2026-05-12 (this revision)
+### v3 — 2026-05-12 (this revision)
+
+Polish from review B5 round 2 (v2 approved with 4 follow-ups):
+- **N1** — Tests 1 and 4 in §15.1 no longer assert `auth_tokens` row state (that's internal). Test 1 now asserts the welcome email link, when visited, results in an authenticated session. Test 4 asserts only `subscriptions`/`subscribers` row counts and email-delivery count.
+- **N2** — §13.4 closes the "refund_status column or pending_refunds table" deferred decision: **no new column or table in Phase 6.** Observability comes from the gap between Stripe Dashboard events list and our `stripe_events` table (incomplete handlers leave no row by construction, per §13.2).
+- **Test 2 reinforcement** — race-condition test now asserts the payment was refunded as observable external state, not just that our handler attempted the refund.
+- **N3** — §13.3 clarifies that admin "Reenviar welcome email" overwrites `welcome_email_status` in place; no resend-history audit trail in Phase 6.
+- **N4** — §3.9 closes the cleanup cron decision: no cron in Phase 6, allow unbounded growth at current scale, add cron in Phase 6.5 only if table grows past ~10k rows.
+
+### v2 — 2026-05-12
 
 Incorporates 16 issues from review B5:
 
