@@ -362,7 +362,11 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30_000,
     setupFiles: ['tests/integration/setup.ts'],
-    fileParallel: false,  // integration tests share a DB
+    // Integration tests share the DB AND the in-memory stripeState mock (S7).
+    // File-level parallelism would let two test files mutate the same global
+    // singleton concurrently → intermittent flakiness in payment/refund
+    // assertions. Force sequential file execution.
+    fileParallelism: false,
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
@@ -770,6 +774,8 @@ git commit -m "feat(page): /gracias post-checkout success page"
 
 **Goal:** A paid Stripe Checkout event creates `subscribers`, `subscriptions`, `auth_tokens` rows and queues a welcome email via Resend. Webhook is signature-verified. The idempotency model from spec §13.2 is wired (SELECT-then-INSERT-at-end). This slice does NOT yet handle capacity races, duplicate subscriptions, or lifecycle events — those are S6/S7.
 
+**TDD note for this slice (and slices that follow the same pattern):** The spec contract tests (§15.1) are *integration* tests that verify end-to-end observable behavior. They are best authored *alongside* the handler code that satisfies them, not strictly before. In Task 3.8 the steps describe writing the test and confirming it passes — they do not first assert the test fails against a stub. This is intentional and consistent with how the rest of the slices work (S4, S6, S7, S8). Strict red-green-refactor TDD does not map cleanly onto webhook plumbing where the "minimal failing implementation" is itself the production code. The discipline we *do* keep: every spec §15.1 test number has a planned code block; tests run before commit; a failure in a later iteration falls back to debugging the handler, not deleting the test.
+
 **Slice integration test contract:**
 - **Test 1 (Webhook happy path)** — fully satisfied at the end of this slice.
 - **Test 4 (Webhook idempotency)** — satisfied (replay returns 200, no duplicate rows or emails).
@@ -1157,8 +1163,18 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   const stripeCustomerId = session.customer as string;
   if (!email || !stripeSubscriptionId) throw new Error('checkout session missing email or subscription');
 
-  // Fetch the subscription for billing period info
+  // Fetch the subscription for billing period info.
+  // POST-BASIL NOTE: as of Stripe API 2025-03-31 ("Basil"), current_period_start
+  // and current_period_end are no longer top-level fields on the Subscription
+  // object — they live on each subscription item. For mentoría's single-item
+  // recurring price, the period is on items.data[0]. Reading the old top-level
+  // path silently returns undefined → invalid Date. See:
+  // https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end
   const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const item = sub.items.data[0];
+  if (!item) throw new Error(`subscription ${sub.id} has no items`);
+  const currentPeriodStart = new Date(item.current_period_start * 1000);
+  const currentPeriodEnd = new Date(item.current_period_end * 1000);
 
   // 1. Upsert subscriber by email (idempotent: email is unique)
   await db.insert(subscribers).values({ email, stripeCustomerId }).onConflictDoUpdate({
@@ -1179,8 +1195,8 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
     productId: product.id,
     status: 'active',
     stripeSubscriptionId,
-    currentPeriodStart: new Date((sub as any).current_period_start * 1000),
-    currentPeriodEnd: new Date((sub as any).current_period_end * 1000),
+    currentPeriodStart,
+    currentPeriodEnd,
     sessionsRemaining: 2,
   }).onConflictDoNothing({ target: subscriptions.stripeSubscriptionId });
 
@@ -1302,10 +1318,15 @@ vi.mock('@/lib/stripe', async () => {
         constructEvent: (raw: string) => JSON.parse(raw),  // bypass sig verify in tests
       },
       subscriptions: {
+        // Post-Basil shape: period fields nested under items.data[0].
         retrieve: vi.fn(async (id: string) => ({
           id,
-          current_period_start: Math.floor(Date.now() / 1000),
-          current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400,
+          items: {
+            data: [{
+              current_period_start: Math.floor(Date.now() / 1000),
+              current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400,
+            }],
+          },
         })),
       },
     } as any,
@@ -2266,10 +2287,19 @@ import { eq } from 'drizzle-orm';
 
 export async function handleSubscriptionUpdated(event: Stripe.Event) {
   const sub = event.data.object as Stripe.Subscription;
+  // Post-Basil: period fields are on items, not on the subscription. If the
+  // webhook payload were ever missing items (shouldn't happen for our flow),
+  // skip the period update rather than write Invalid Date.
+  const item = sub.items?.data?.[0];
+  const periodUpdate = item
+    ? {
+        currentPeriodStart: new Date(item.current_period_start * 1000),
+        currentPeriodEnd: new Date(item.current_period_end * 1000),
+      }
+    : {};
   await db.update(subscriptions).set({
     status: mapStatus(sub.status),
-    currentPeriodStart: new Date((sub as any).current_period_start * 1000),
-    currentPeriodEnd: new Date((sub as any).current_period_end * 1000),
+    ...periodUpdate,
     cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
     updatedAt: new Date(),
   }).where(eq(subscriptions.stripeSubscriptionId, sub.id));
@@ -2449,6 +2479,8 @@ git commit -m "feat(api): POST /api/admin/cancel-subscription (admin-gated)"
 
 ```ts
 export function makeSubscriptionUpdatedEvent(opts: { eventId: string; stripeSubscriptionId: string; cancelAtPeriodEnd: boolean; status?: string; periodStart?: number; periodEnd?: number; }): Stripe.Event {
+  const periodStart = opts.periodStart ?? Math.floor(Date.now() / 1000);
+  const periodEnd = opts.periodEnd ?? Math.floor(Date.now() / 1000) + 30 * 86400;
   return {
     id: opts.eventId, object: 'event', api_version: '2025-09-30.clover',
     created: Math.floor(Date.now() / 1000), livemode: false, pending_webhooks: 0,
@@ -2458,8 +2490,8 @@ export function makeSubscriptionUpdatedEvent(opts: { eventId: string; stripeSubs
       id: opts.stripeSubscriptionId, object: 'subscription',
       status: opts.status ?? 'active',
       cancel_at_period_end: opts.cancelAtPeriodEnd,
-      current_period_start: opts.periodStart ?? Math.floor(Date.now() / 1000),
-      current_period_end: opts.periodEnd ?? Math.floor(Date.now() / 1000) + 30 * 86400,
+      // Post-Basil shape — period lives on items, not on the subscription.
+      items: { data: [{ current_period_start: periodStart, current_period_end: periodEnd }] },
     } as any },
   } as Stripe.Event;
 }
@@ -2807,7 +2839,14 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   const paymentIntentId = session.payment_intent as string | null;
   if (!email || !stripeSubscriptionId) throw new Error('checkout session missing email or subscription');
 
+  // Post-Basil (2025-03-31): period fields live on subscription items, not on the
+  // top-level Subscription object. See:
+  // https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end
   const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const item = sub.items.data[0];
+  if (!item) throw new Error(`subscription ${sub.id} has no items`);
+  const currentPeriodStart = new Date(item.current_period_start * 1000);
+  const currentPeriodEnd = new Date(item.current_period_end * 1000);
 
   await db.insert(subscribers).values({ email, stripeCustomerId }).onConflictDoUpdate({
     target: subscribers.email,
@@ -2820,8 +2859,8 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
     subscriberId: sub_row.id,
     productId: product.id,
     stripeSubscriptionId,
-    currentPeriodStart: new Date((sub as any).current_period_start * 1000),
-    currentPeriodEnd: new Date((sub as any).current_period_end * 1000),
+    currentPeriodStart,
+    currentPeriodEnd,
   });
 
   if (result.inserted) {
@@ -2947,7 +2986,13 @@ git commit -m "feat(checkout): pre-checkout 409 guard + Stripe customer reuse"
 import { vi } from 'vitest';
 
 interface PaymentIntentState { id: string; refunded: boolean; }
-interface SubscriptionState { id: string; status: 'active' | 'canceled'; current_period_start: number; current_period_end: number; }
+interface SubscriptionState {
+  id: string;
+  status: 'active' | 'canceled';
+  // Post-Basil: period fields belong on items, not the subscription. Mirror
+  // Stripe's API shape so handlers under test see the same structure.
+  items: { data: Array<{ current_period_start: number; current_period_end: number }> };
+}
 
 export const stripeState = {
   paymentIntents: new Map<string, PaymentIntentState>(),
@@ -2956,8 +3001,12 @@ export const stripeState = {
   seedSubscription(id: string) {
     this.subscriptions.set(id, {
       id, status: 'active',
-      current_period_start: Math.floor(Date.now() / 1000),
-      current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400,
+      items: {
+        data: [{
+          current_period_start: Math.floor(Date.now() / 1000),
+          current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400,
+        }],
+      },
     });
   },
   seedPaymentIntent(id: string) {
@@ -3073,6 +3122,17 @@ describe('Test 2 — Capacity race (full cap)', () => {
 
     // Assert: payment refunded (external observable state)
     expect(stripeState.isRefunded('pi_race_9')).toBe(true);
+
+    // Spec §15.1 Test 2 final clause: if the overflow subscriber row exists,
+    // no subscriptions row attaches to them.
+    const overflowSub = await db.query.subscribers.findFirst({
+      where: eq(subscribers.email, 'overflow@example.com'),
+    });
+    if (overflowSub) {
+      const attached = await db.select().from(subscriptions)
+        .where(eq(subscriptions.subscriberId, overflowSub.id));
+      expect(attached).toHaveLength(0);
+    }
   });
 });
 ```
@@ -3082,6 +3142,7 @@ describe('Test 2 — Capacity race (full cap)', () => {
 ```ts
 import '../helpers/resend-mock';
 import '../helpers/stripe-mock-with-state';
+import { sentEmails, resetSentEmails } from '../helpers/resend-mock';
 import { stripeState } from '../helpers/stripe-mock-with-state';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '@/db/client';
@@ -3090,7 +3151,7 @@ import { and, count, eq, inArray } from 'drizzle-orm';
 import { POST } from '@/app/api/webhooks/stripe/route';
 import { makeCheckoutCompletedEvent } from '../helpers/stripe-fixture';
 
-beforeEach(() => { stripeState.reset(); });
+beforeEach(() => { stripeState.reset(); resetSentEmails(); });
 
 describe('Test 3 — Capacity with mixed statuses', () => {
   it('5 active + 3 canceled → 9th checkout succeeds and creates new active row', async () => {
@@ -3130,6 +3191,21 @@ describe('Test 3 — Capacity with mixed statuses', () => {
     const [{ value: activeCount }] = await db.select({ value: count() }).from(subscriptions)
       .where(and(eq(subscriptions.productId, product.id), inArray(subscriptions.status, ['active', 'past_due'])));
     expect(activeCount).toBe(6);
+
+    // Spec §15.1 Test 3 also requires: the new user has a welcome email and
+    // their subscription row records welcome_email_status='sent'. (This guards
+    // against a regression where the count is correct but the welcome path
+    // silently broke.)
+    const newSub = await db.query.subscribers.findFirst({
+      where: eq(subscribers.email, 'newperson@example.com'),
+    });
+    expect(newSub).toBeTruthy();
+    const newSubscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.subscriberId, newSub!.id),
+    });
+    expect(newSubscription?.welcomeEmailStatus).toBe('sent');
+    const welcomeEmail = sentEmails.find((e) => e.to === 'newperson@example.com');
+    expect(welcomeEmail).toBeTruthy();
   });
 });
 ```
