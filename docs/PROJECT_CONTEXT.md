@@ -37,7 +37,7 @@ Servicio nuevo (Phase 6, en planning):
 - **Repo**: https://github.com/SnakeJazzzz/Portal-Espiritual
 
 Stack a añadir en Phase 6:
-- **DB**: Vercel Postgres + Drizzle ORM
+- **DB**: Neon Postgres (vía Vercel Marketplace) + Drizzle
 - **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma que Cal.com)
 - **Email transaccional**: Resend (cuenta del developer, dominio del cliente)
 - **Validación**: Zod
