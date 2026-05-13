@@ -314,21 +314,59 @@ MAGIC_LINK_SECRET                # random 32-byte hex para firmar links
 
 ---
 
-## Phase 6.5 — Admin dashboard (post-Phase 6, antes de Phase 7)
+### Alcance del admin en Phase 6 (decisión brainstorming 2026-05-12)
+
+Phase 6 **sí incluye un admin mínimo** — sin él, Juan Pablo no tiene
+forma observable de saber cuántos suscriptores activos tiene ni de
+ajustar `sessions_remaining` manualmente. Lo que va y lo que no va:
+
+**Incluido en Phase 6 (admin mínimo):**
+
+- `/admin` — lista de suscriptores con columnas: nombre, email,
+  fecha inicio, sesiones restantes, status. Toggle "ver canceladas".
+- `/admin/[id]` — vista de detalle read-only excepto:
+  - Input inline numérico para ajustar `sessions_remaining`
+    (registrado en `audit_log`)
+  - Botón "Cancelar suscripción" (Stripe API con
+    `cancel_at_period_end = true`)
+  - Link directo al Customer en Stripe Dashboard
+
+**Diferido a Phase 6.5 (admin completo, ver siguiente sección):**
+
+- Edición de campos del suscriptor (nombre, email, IG, etc) — en
+  Phase 6 se cambian por SQL si surge necesidad (≤8 suscriptores).
+- Notas internas del admin
+- Pause subscription
+- Búsqueda, ordenamiento custom, exportación CSV
+- UI propia de historial de pagos (existe en Stripe Dashboard)
+- LFPDPPP delete-by-email UI (en Phase 6: script manual)
+- Métricas / churn rate / spots ocupados visual
+- Lista de waitlist con marcar-como-notificado
+
+Spec de referencia: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md` §9.
+
+---
+
+## Phase 6.5 — Admin dashboard completo (post-Phase 6, antes de Phase 7)
+
+**Relación con Phase 6:** Phase 6 ya entrega un admin *mínimo*
+(lista + cancel + edit sessions; ver "Alcance del admin en Phase 6"
+arriba). Phase 6.5 expande ese admin a CRM completo. Es expansión,
+no construcción desde cero.
 
 **Cuando se hace:** cuando el cliente reporte fricción manejando
 suscriptores manualmente, o antes de Phase 7 si se considera necesario.
 
-### Funcionalidad
+### Funcionalidad (delta sobre el admin mínimo de Phase 6)
 
-- Auth de admin para Juan Pablo (magic link a su email específico, env var)
-- Página `/admin/mentoria` con:
-  - Lista de suscriptores activos
-  - Sus datos personales completos
-  - Status de su suscripción
-  - Acciones: editar datos, dar de baja manualmente, borrar (LFPDPPP)
-- Lista de waitlist
-- Métricas básicas: spots ocupados, churn rate
+- Edición inline de datos del suscriptor (nombre, IG, teléfono, etc)
+- Notas internas del admin con editor
+- Pause subscription (Stripe `pause_collection`)
+- Búsqueda y filtros custom, exportación CSV
+- UI de historial de pagos (vs link a Stripe Dashboard en Phase 6)
+- LFPDPPP delete-by-email con UI
+- Lista de waitlist con marcar-como-notificado
+- Métricas básicas: spots ocupados, churn rate, MRR
 
 ### Estimación
 
