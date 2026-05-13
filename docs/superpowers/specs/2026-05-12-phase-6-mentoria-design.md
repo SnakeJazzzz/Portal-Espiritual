@@ -1,10 +1,10 @@
 # Phase 6 — Mentoría 1-a-1: Design Spec
 
-**Status:** draft, pending user review
+**Status:** draft v2, pending user review (incorporates 16 review issues from review B5)
 **Date:** 2026-05-12
 **Authors:** brainstorming session (Claude Opus + Michael)
 **Predecessor docs:** `docs/ARCHITECTURE_AND_ROADMAP.md`, `docs/PROJECT_CONTEXT.md`
-**Next step:** writing-plans (implementation plan)
+**Next step:** writing-plans (implementation plan), after ROADMAP reconciliation (see §17)
 
 ---
 
@@ -57,7 +57,7 @@ These come from `ARCHITECTURE_AND_ROADMAP.md §2`. Any implementation decision t
 
 ## 3. Data model
 
-Eight tables. Phase-6-only; designed so Phase 7+ adds rows (and possibly columns), not table rewrites.
+Nine tables. Phase-6-only; designed so Phase 7+ adds rows (and possibly columns), not table rewrites.
 
 ### 3.1 `products`
 
@@ -115,6 +115,7 @@ The user table. Named `subscribers` because the domain is subscription, but func
 | `cancel_at_period_end` | bool default false | |
 | `canceled_at` | timestamptz nullable | when Stripe reports canceled |
 | `sessions_remaining` | int | reset to 2 on each `invoice.paid` |
+| `welcome_email_status` | enum (`'pending' | 'sent' | 'failed' | 'bounced'`) default `'pending'` | tracks deliverability of the initial magic-link email (§13.3) |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
@@ -136,9 +137,11 @@ Capacity (8 spots) is enforced at write time by a conditional INSERT — see §5
 | `email` | text | not unique (same email can re-add over time) |
 | `product_id` | uuid fk → products | |
 | `consent_privacy_at` | timestamptz | explicit LFPDPPP consent timestamp |
-| `consent_privacy_version` | text | which `/privacidad` version they consented to |
+| `consent_privacy_version` | text | the version string of `/privacidad` they accepted — see format below |
 | `notified_at` | timestamptz nullable | when admin marked them notified |
 | `created_at` | timestamptz | |
+
+**`consent_privacy_version` format:** ISO date string `YYYY-MM-DD` matching the `PRIVACY_VERSION` constant exported from `src/app/privacidad/page.tsx`. The maintainer updates this constant manually whenever the privacy text changes. This gives us a stable, human-readable, lawyer-friendly version identifier. (Git SHAs would be more rigorous but are opaque to a non-developer who needs to identify a version in a legal context.)
 
 ### 3.5 `stripe_events`
 
@@ -151,7 +154,7 @@ Idempotency log. Required by principle 4.
 | `payload` | jsonb | full event for debugging |
 | `processed_at` | timestamptz | |
 
-Insert with `ON CONFLICT DO NOTHING`. If conflict, the event was already processed — webhook returns 200 immediately without re-running side effects.
+The row is inserted **at the end** of webhook processing (the commit point), not at the start. See §13.2 for the rationale (replay-safe handling of multi-side-effect webhooks). The check-then-skip on retry is done via a SELECT, not via INSERT … ON CONFLICT.
 
 ### 3.6 `auth_tokens`
 
@@ -162,7 +165,8 @@ Magic-link single-use tokens.
 | `id` | uuid pk | |
 | `token_hash` | text unique | SHA-256 hex of the raw token |
 | `subscriber_id` | uuid fk → subscribers | |
-| `expires_at` | timestamptz | 15 min after creation |
+| `kind` | enum (`'welcome' | 'login'`) | determines expiry policy and email template |
+| `expires_at` | timestamptz | `welcome` → created_at + 7 days; `login` → created_at + 15 min |
 | `consumed_at` | timestamptz nullable | single-use flag |
 | `created_at` | timestamptz | |
 
@@ -186,11 +190,28 @@ Admin actions only.
 |---|---|---|
 | `id` | uuid pk | |
 | `admin_id` | uuid fk → subscribers | the admin who did the action |
-| `action` | text | e.g. `'set_sessions_remaining'`, `'cancel_subscription'`, `'change_subscriber_email'` |
+| `action` | text | e.g. `'set_sessions_remaining'`, `'cancel_subscription'`, `'change_subscriber_email'`, `'duplicate_subscription_refund'`, `'capacity_race_refund'` |
 | `target_subscriber_id` | uuid fk → subscribers nullable | who was affected |
 | `before` | jsonb nullable | snapshot of changed fields |
 | `after` | jsonb nullable | new values |
 | `created_at` | timestamptz | |
+
+System-initiated rows (race-refund, duplicate-refund) have `admin_id = NULL`.
+
+### 3.9 `rate_limit_attempts`
+
+Per-IP rate limit counter for `POST /api/auth/login` (and any future rate-limited endpoint). See §7.2 criterion 4.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid pk | |
+| `endpoint` | text | e.g. `'auth_login'` |
+| `ip` | inet | client IP (from `x-forwarded-for` first hop, with Vercel's proxy chain) |
+| `attempted_at` | timestamptz | |
+
+Index: `(endpoint, ip, attempted_at desc)` to support `WHERE endpoint=$1 AND ip=$2 AND attempted_at > now() - interval '60 seconds'` efficiently.
+
+Periodic cleanup: rows older than 1 hour are deleted by a low-frequency cron (e.g. daily Vercel cron job calling `DELETE FROM rate_limit_attempts WHERE attempted_at < now() - interval '1 hour'`). Not critical for correctness — only for keeping the table small.
 
 ---
 
@@ -220,7 +241,7 @@ The mentoría card uses the same visual primitives as `ServiceCard` (CelestialBo
 
 ### 4.3 `/mentoria` standalone page
 
-Server component that renders the same mentoría card (or a fuller variant) plus a longer description / benefits section. Same capacity-aware CTA. Linked from header / footer / home card if needed.
+Server component that renders the same `MentoriaCard` (single component; same `capacityFull` prop wiring) plus a longer description / benefits section around it. Same CTA logic. Linked from header / footer / home card if needed.
 
 ### 4.4 `/privacidad`
 
@@ -288,35 +309,69 @@ The card reads `COUNT(*) WHERE status IN ('active', 'past_due')` server-side at 
 5. `/gracias` shows: "Pago recibido. En segundos te llega un correo con tu acceso." No polling, no DB lookup.
 6. Stripe sends `checkout.session.completed` → our webhook → atomic capacity insert + create/find subscriber by email + insert auth_token + send Resend email with magic link.
 7. User opens email, clicks magic link → `/api/auth/verify` → session cookie set → redirect:
-   - If `profile_completed_at IS NULL` → `/cuenta/perfil` (first-visit form)
+   - If `name IS NULL OR instagram_handle IS NULL OR date_of_birth IS NULL` → `/cuenta/perfil` (first-visit form, per §7.4 / §8.1)
    - Else → `/cuenta`
+
+### 6.1.1 Existing active subscriber double-payment guard (A2)
+
+Two layers of protection prevent an already-subscribed user from accidentally double-paying:
+
+**Layer 1 — `POST /api/checkout/create` pre-check (logged-in users):**
+If the request comes from a logged-in subscriber whose `subscribers.id` already has a `subscriptions` row in (`active`, `past_due`), reject with 409 and a body indicating the existing subscription. The CTA on `/mentoria` for logged-in users with an active sub renders as "Ver mi suscripción" → `/cuenta` instead of "Suscríbete".
+
+**Layer 2 — webhook fallback (anonymous checkouts):**
+Anonymous users (no session) can still hit the `Suscríbete` button — there's no email known until Stripe collects it during checkout. They get past the pre-check. If, post-payment, the webhook attempts to INSERT a subscription and the partial unique index from §3.3 raises a constraint violation (`subscriptions_active_subscriber_per_product`), the webhook treats this as the "already active" case:
+
+1. Call `stripe.subscriptions.cancel(sub_id, ...)` with idempotency key `<event_id>:cancel`.
+2. Call `stripe.refunds.create({ payment_intent, ... })` with idempotency key `<event_id>:refund`.
+3. Send "duplicate subscription" email (distinct copy from the race email): "Detectamos que ya tienes una suscripción activa. Te reembolsamos los $2222 MXN. Para administrar tu suscripción ve a /cuenta."
+4. Log to `stripe_events` and `audit_log` (`action='duplicate_subscription_refund'`).
+
+The "race condition" email (§5.1) and the "duplicate subscription" email are **distinct templates** — different copy, different cause, different next-step CTA. Both are sent automatically by the webhook.
 
 ### 6.2 Cancel mid-checkout (D6)
 
 User closes Stripe page or clicks back. Stripe redirects to `cancel_url`. Page shows: "Tu suscripción quedó pendiente. Dale otra vez al botón cuando estés listo." No emails. No DB rows.
 
-### 6.3 Webhook latency (D7)
+### 6.3 Webhook latency (D7) — honest cost statement
 
-The success page (`/gracias`) does not depend on the webhook having fired. The email is the activation signal. Typical Stripe webhook delivery is <5s; we tolerate up to several minutes without UX impact.
+The success page (`/gracias`) does not depend on the webhook having fired. The email (generated *by* the webhook) is the activation signal. Typical Stripe webhook delivery is <5s.
 
-**Fallback if user clicks magic link before webhook processes** (very rare; magic link is generated *by* the webhook, so this shouldn't happen — but if a separate manual login is attempted before the webhook lands, the subscriber row doesn't exist yet and login fails silently per §7.7).
+**Honest framing of the cost:** if the webhook is delayed >30 seconds (rare, but happens — Stripe outages, our serverless cold-start, Resend queue lag, Vercel function timeout), the user has paid, received the success page, but no welcome email. From their perspective: they paid and nothing happened. Their natural recourse is to message Juan Pablo via Instagram DM.
+
+This is a point of friction. It is acceptable for Phase 6 because: (a) the user base is small (≤8) and JP has direct Instagram contact with everyone, (b) the cost of building robust client-side polling + DB lookup + race-free "still processing" UI is high for an event that will affect at most a handful of users in Phase 6 lifetime. The fallback in §6.4 catches the case where the user finds their way to `/cuenta` somehow before the email arrives.
+
+**Fallback if user clicks magic link before webhook processes:** very rare since magic link is generated *by* the webhook. If a separate manual login is attempted before the webhook lands, the subscriber row doesn't exist yet and login responds with a generic 200 + no email (per §7.6 email-enumeration protection); user will then check email a moment later when the real webhook-issued link arrives.
 
 ### 6.4 Fallback on `/cuenta` if subscription row missing
 
 When a logged-in subscriber visits `/cuenta` but no `subscriptions` row exists (extreme edge: webhook delayed >30s and they bypassed the email link somehow), show: "Tu suscripción se está procesando. Refresca en unos segundos." with a manual refresh button. No automatic polling.
 
-### 6.5 Past_due handling (Option A — default Stripe)
+### 6.5 Past_due handling (Stripe Smart Retries, default policy)
 
 When Stripe sends `invoice.payment_failed`:
 
 - `subscriptions.status = 'past_due'`
 - Subscriber **retains access** (sessions counter, `/cuenta`)
 - Red banner on `/cuenta`: "Tu pago falló. Actualiza tu tarjeta [Abrir Stripe Customer Portal]"
-- Stripe Smart Retries handles ~4 retry attempts over ~3 weeks (default configuration; do not customize)
+- Stripe Smart Retries handles automatic retry attempts on an ML-optimized schedule
+
+**Smart Retries actual behavior** (per Stripe Billing → Revenue recovery → Retries config, May 2026):
+
+- Stripe's recommended/default policy: up to 8 retry attempts over a 2-week window, with timing chosen per-card by Stripe's ML model (no fixed schedule — it learns from card-issuer behavior to pick "best" retry moments).
+- After all retries are exhausted, the configured failure action fires. We use the default: subscription is canceled and `customer.subscription.deleted` is sent.
+- Configured in Stripe Dashboard → **Billing → Revenue recovery → Retries**.
+
+**Justification for using defaults rather than customizing:**
+1. We have no data to outperform Stripe's ML-driven schedule.
+2. 8 attempts / 2 weeks is short enough that a non-responsive subscriber's spot frees within a reasonable timeframe (matters for our 8-spot cap).
+3. Custom retry schedules add ops burden (JP would have to reason about retry policy) for no measurable revenue lift at this user count.
 
 When retry succeeds (`invoice.paid`): status flips back to `'active'`, banner disappears, sessions counter resets to 2 if it's a new billing cycle.
 
-When all retries exhausted: Stripe sends `customer.subscription.deleted` → status `'canceled'` → spot is freed (next webhook handler will see capacity < 8).
+When all retries exhausted: Stripe sends `customer.subscription.deleted` → status `'canceled'` → spot is freed (next checkout webhook will see capacity < 8 and succeed).
+
+**Important spot-occupancy note (A3):** during the up-to-2-week retry window, a `past_due` subscriber **continues to occupy a spot** (per §5.1, the capacity count includes both `'active'` and `'past_due'`). If JP needs to free a spot before retries exhaust — for example, to take a waitlisted person off the queue when one current subscriber has clearly abandoned — his only recourse is to cancel the subscription manually from the admin panel (`POST /api/admin/cancel-subscription`). This is intentional: automated early-cancellation on payment failure would lose revenue recovery from the Smart Retries window.
 
 ---
 
@@ -339,9 +394,16 @@ The webhook also creates auth_token rows automatically — the welcome email *is
 These become test cases:
 
 1. **Tokens hashed (SHA-256 hex) before storage.** Plaintext token only exists in the email link.
-2. **Expiry 15 minutes** from creation. Verify endpoint rejects expired tokens.
+2. **Expiry depends on token `kind`:**
+   - `kind='login'` (user-initiated `POST /api/auth/login`): **15 minutes** from creation. Short window because the user is actively waiting for the email.
+   - `kind='welcome'` (issued by the webhook after `checkout.session.completed`): **7 days** from creation. The longer window prevents the realistic case where a user pays at 11pm and only checks email the next morning, or pays from mobile and checks from desktop later.
+   Verify endpoint rejects expired tokens of either kind. If a welcome link expires (>7d), the user can request a fresh login link via `POST /api/auth/login` once their subscriber row exists.
 3. **Single-use.** `consumed_at` set on successful verify; reuse returns 401.
-4. **Rate limit `POST /api/auth/login`** to 5 requests/min per IP. Returns 429 on exceed. Implementation must work across Vercel's multi-instance serverless model — pick one of: (a) DB-backed counter in a `rate_limit_attempts` table keyed by IP, or (b) Upstash Ratelimit (Redis). In-memory LRU is **not** sufficient — different requests hit different instances. Decision deferred to writing-plans.
+4. **Rate limit `POST /api/auth/login`** to 5 requests/min per source IP. Returns 429 on exceed.
+
+   **Decision (D3):** DB-backed implementation using a `rate_limit_attempts` table — see §3.9 below. Reason: zero new infra, works across Vercel multi-instance serverless (the DB is the shared source of truth), trivially fits Phase 6 traffic levels (≤8 subscribers, very low /api/auth/login volume). Upstash/Redis is over-engineering at this scale; revisit only if traffic grows.
+
+   Implementation sketch: on each `POST /api/auth/login`, INSERT a row keyed by `(endpoint='auth_login', ip)`. Before responding, count rows for the same `(endpoint, ip)` in the last 60 seconds; if ≥5, return 429. Periodic cleanup of rows older than 1 hour is handled by a daily Vercel cron or simply allowed to accumulate (small data; Postgres VACUUM reclaims).
 5. **Constant-time comparison** when matching token hashes (`crypto.timingSafeEqual` on equal-length buffers).
 6. **Cookies HttpOnly + Secure + SameSite=Lax.** Cookie name e.g. `pe_session`. Path `/`. Max-age 30 days.
 7. **No email-existence leak.** `POST /api/auth/login` always returns 200 (or generic 429 on rate limit), regardless of whether the email exists. Email is sent only if it does.
@@ -355,8 +417,13 @@ These become test cases:
 
 Single login flow. Redirect destination is determined at verify time in this order:
 - `role = 'admin'` → `/admin` (admins skip the profile form entirely)
-- `role = 'subscriber'` and `profile_completed_at IS NULL` → `/cuenta/perfil`
-- `role = 'subscriber'` and profile complete → `/cuenta`
+- `role = 'subscriber'` and required-fields incomplete → `/cuenta/perfil`
+- `role = 'subscriber'` and required fields populated → `/cuenta`
+
+"Required-fields incomplete" is evaluated by checking the actual columns:
+`name IS NULL OR instagram_handle IS NULL OR date_of_birth IS NULL`.
+
+The `profile_completed_at` column remains as an audit timestamp (set when the user first submits the profile form), but is **not** used as the gate. Reason: if Phase 6.5 adds a new required field, the field-level check naturally re-prompts users who completed an older version of the form; a single boolean would leave them with stale incomplete data and require a one-off migration to fix.
 
 ### 7.5 Admin bootstrapping
 
@@ -380,7 +447,7 @@ Complete in Phase 6.
 
 ### 8.1 First-visit profile form (`/cuenta/perfil`)
 
-Triggered when `subscribers.profile_completed_at IS NULL`. Until submitted, no other `/cuenta` page renders — middleware redirects.
+Triggered when any of `subscribers.name`, `subscribers.instagram_handle`, `subscribers.date_of_birth` is `NULL`. Until all three are populated, no other `/cuenta` page renders — middleware redirects. The `profile_completed_at` column is set on first successful submit for audit purposes but is not the gate (see §7.4).
 
 Fields:
 - Nombre completo — **required**
@@ -488,8 +555,14 @@ Waitlist is informational. There is no priority queue and no automatic checkout 
 - **Forward-only.** No down-migrations. A bad migration is corrected by writing another migration.
 - **No `drizzle-kit push` in production.** Always apply migration SQL.
 - **No automatic migrations in Next.js startup** (multi-region serverless race condition).
-- **Application path:** local dev runs `npm run db:migrate` against local or branch DB. CI runs migrations against the Neon preview branch for the PR. Before merging to main, the developer runs `npm run db:migrate` against the production Neon DB manually, then merges. This is observable and reversible at the scale of Phase 6.
-- **Neon preview branches:** each PR gets its own ephemeral DB branch (already configured per roadmap §10).
+- **Application path — automated via Vercel build:**
+  - `package.json` adds `"db:migrate": "drizzle-kit migrate"` and `"prebuild": "npm run db:migrate"`.
+  - Vercel injects `DATABASE_URL` (or `POSTGRES_URL`) per environment automatically (production → prod DB; preview → its Neon preview branch).
+  - On every Vercel deployment, migrations run before `next build`. If migrations fail, the deploy fails — this is the intended fail-safe.
+  - Local dev: `npm run db:migrate` against a local Neon branch URL.
+  - No secret ever leaves Vercel. No human runs migrations manually against production.
+- **Neon preview branches:** each PR gets its own ephemeral DB branch (already configured per roadmap §10). Migrations on the preview branch are isolated from production.
+- **Rollback:** if a deploy succeeds but introduces a bad migration, write a corrective forward migration in a follow-up PR. If a deploy *fails* in the migration step, production DB is untouched (predeploy failed → no `next build` → no traffic shift). The previous deployment stays live.
 
 **Price unit decision:** `products.price_mxn` stores integer pesos (e.g. `2222`). Stripe natively stores minor units internally; we leave that to Stripe and present pesos in our UI/DB. We never math fractional MXN in this product.
 
@@ -530,17 +603,63 @@ Waitlist is informational. There is no priority queue and no automatic checkout 
 
 ## 13. Stripe webhook event handlers
 
+### 13.1 Event handler table
+
 | Event | Action |
 |---|---|
-| `checkout.session.completed` | Atomic capacity insert; on success: upsert subscriber by email, insert subscription, create auth_token, send welcome email with magic link. On capacity failure: cancel sub + refund + send "race" email. |
+| `checkout.session.completed` | Atomic capacity insert. On success: upsert subscriber by email, insert subscription, create auth_token, attempt welcome email send. On capacity-full: cancel sub + refund + race email (§5.1). On existing-active-sub partial-index violation: cancel + refund + duplicate-subscription email (§6.1.1). |
+| `customer.subscription.created` | No-op (logged for visibility). The actual subscription row is created in `checkout.session.completed` where we have buyer context. If this handler ever needs to do work (e.g. if we add admin-created subscriptions outside checkout), reconsider. |
 | `customer.subscription.updated` | Mirror `status`, `current_period_start/end`, `cancel_at_period_end`. |
 | `customer.subscription.deleted` | Set `status='canceled'`, set `canceled_at`. Spot frees. |
-| `invoice.paid` | If for an active subscription's renewal: reset `sessions_remaining` to 2 (use product config in future; literal 2 in Phase 6). |
-| `invoice.payment_failed` | Set `status='past_due'` (Stripe will retry per Smart Retries config). |
-
-All events first insert into `stripe_events` with `ON CONFLICT DO NOTHING`. If the event was already processed, return 200 immediately without re-running side effects.
+| `invoice.paid` | If for an active subscription's renewal: reset `sessions_remaining` to 2. |
+| `invoice.payment_failed` | Set `status='past_due'` (Stripe will retry per §6.5). |
 
 Webhook signature verification: use `stripe.webhooks.constructEvent(rawBody, signature, STRIPE_WEBHOOK_SECRET)`. Reject with 400 on invalid signature.
+
+### 13.2 Idempotency model — replay-safe webhook handler (C2)
+
+The naive "INSERT into stripe_events at start, return 200 if conflict" pattern is **insufficient** when a webhook does multiple side effects (DB write + Stripe API call + Resend email). A partial failure between side effects leaves us in an inconsistent state, and the `stripe_events` row already exists so Stripe retries will short-circuit.
+
+**Correct model:** make each side effect individually idempotent, and insert `stripe_events` **only after all side effects succeed**:
+
+1. Read event, verify signature.
+2. **Check** if `stripe_events.stripe_event_id` already exists → if yes, return 200 immediately (idempotency log hit). This is a `SELECT`, not an `INSERT`.
+3. Execute all side effects, each using an idempotency key derived from `event.id + side_effect_name`:
+   - DB inserts use natural unique keys: `subscriptions.stripe_subscription_id` is unique, `subscribers.email` is unique. Re-runs are safe (use `INSERT … ON CONFLICT DO NOTHING/UPDATE`).
+   - Stripe API calls pass `idempotencyKey: '<event.id>:<action>'` (e.g. `'evt_xxx:cancel'`, `'evt_xxx:refund'`). Stripe returns the same response on replay — no double-refund risk.
+   - Resend calls use a custom message header `X-Idempotency-Key: '<event.id>:welcome_email'` for our own retry deduplication. (Resend itself does not enforce idempotency, but we use it to skip on our retry path — see §13.3.)
+4. If any side effect throws, **do not** insert `stripe_events`. Return 5xx. Stripe will retry with the same `event.id`; the next attempt re-runs the whole handler but, because of the idempotency keys, no operation duplicates.
+5. After **all** side effects succeed, INSERT `stripe_events`. This is the commit point.
+
+This ordering means: Stripe will retry until the handler is fully successful. Stuck events (handler error not transient) surface as Stripe alerts in their Dashboard (Stripe retries for 3 days by default; after that the event is marked failed and we need to investigate via Stripe Dashboard → Events).
+
+### 13.3 Resend email failure handling (C1)
+
+The welcome-email send is the most user-visible side effect. Two failure modes:
+
+**Mode A — transient (network blip, Resend rate limit):**
+Resend call returns 5xx. The webhook handler raises, returns 5xx to Stripe. Stripe retries the webhook within seconds. On retry, the DB inserts are idempotent (subscriber + subscription already exist), and we attempt the email again. Most transient failures resolve within 1-2 Stripe retries.
+
+**Mode B — persistent (subscriber email bounces, Resend account issue):**
+Resend's send call succeeds (queued) but the message bounces afterward, OR Resend returns 4xx (bad request, invalid email). For 4xx: log + still complete the webhook (insert stripe_events) because we want the subscription row to persist. The user-side problem (bad email, bounced) is handled out-of-band:
+
+- Add column `welcome_email_status` to `subscriptions`: enum `('pending' | 'sent' | 'failed' | 'bounced')`. Default `'pending'`.
+- After Resend call: set to `'sent'` on 2xx, `'failed'` on 4xx.
+- Resend webhook for bounce → set to `'bounced'` (Phase 6 minimal: skip Resend webhooks entirely; rely on JP noticing via "user never logged in" + admin retry button. Phase 6.5 may add Resend bounce webhook.)
+- Admin panel `/admin/[id]` displays the `welcome_email_status` and shows a button "Reenviar welcome email" that re-generates a magic link and re-sends. Idempotency is per-click (creates a new auth_token).
+
+**Trade-off accepted:** if the welcome email persistently bounces (typo'd email captured by Stripe Checkout), the subscriber has paid but cannot self-serve login. JP intervenes manually via admin panel (resend email after correcting via SQL, or refund + cancel). For 8-spot Phase 6 this is acceptable. Phase 6.5 should add automated bounce handling.
+
+### 13.4 Stripe API failure during refund (C2)
+
+If during the race-condition handler (§5.1) or the duplicate-subscription handler (§6.1.1) the Stripe `refunds.create` call fails:
+
+- The idempotency key `'<event.id>:refund'` ensures replay never double-refunds (Stripe returns the original refund object).
+- The webhook handler raises, returns 5xx to Stripe, which retries.
+- The cancel call (`'<event.id>:cancel'`) is also idempotent — replays are no-ops once succeeded.
+- If after Stripe's retry window (3 days) the refund is still failing (e.g. payment was already disputed by user, account-level Stripe issue), the event ends up in Stripe Dashboard → Events → Failed. JP gets a Stripe email alert. Manual recovery: JP issues refund manually from Stripe Dashboard.
+
+Add column `refund_status` to `stripe_events` payload-derived view (or a separate `pending_refunds` table — decision deferred to writing-plans). The admin panel should surface any `stripe_events` rows where the handler ultimately failed, so JP can resolve them manually. The exact UI is Phase 6.5 — for Phase 6 the alerting is via Stripe's own dashboard.
 
 ---
 
@@ -570,8 +689,7 @@ src/
 │       ├── admin/cancel-subscription/route.ts
 │       └── admin/sessions-remaining/route.ts
 ├── components/
-│   ├── MentoriaCard.tsx
-│   ├── MentoriaCardFull.tsx           # capacity-full variant
+│   ├── MentoriaCard.tsx               # single component, takes `capacityFull: boolean` prop
 │   ├── WaitlistModal.tsx
 │   ├── SubscriberDashboard.tsx
 │   ├── SessionsCounter.tsx
@@ -584,7 +702,7 @@ src/
 │   ├── services.ts                    # existing — untouched
 │   └── mentoria.ts                    # new: mentoría display config
 ├── db/
-│   ├── schema.ts                      # Drizzle schema for all 8 tables
+│   ├── schema.ts                      # Drizzle schema for all 9 tables
 │   ├── client.ts                      # singleton Drizzle client
 │   └── migrations/                    # generated SQL migrations
 └── lib/
@@ -606,20 +724,56 @@ Vitest + a dedicated Neon DB branch named `test`. No SQLite (we use `jsonb`, par
 
 ### 15.1 Required integration tests
 
-1. **Webhook happy path:** simulate `checkout.session.completed` → assert subscriber + subscription + auth_token rows created; Resend mock called.
-2. **Capacity race:** seed 8 active rows → fire 9th webhook → assert no new subscription row, Stripe cancel mock called, refund mock called, race email sent.
-3. **Webhook idempotency:** fire same event_id twice → assert one subscription row, second call no-op.
-4. **Magic link single-use:** create token → verify → assert session cookie + consumed_at. Re-verify same token → 401.
-5. **Auth gate:** unauthenticated request to `/cuenta` returns redirect to login.
-6. **Cancel flow:** admin endpoint calls Stripe mock with `cancel_at_period_end=true`; webhook update mirrors state.
-7. **Past_due → restore:** fire `invoice.payment_failed` → status past_due; fire `invoice.paid` → status active, sessions reset.
-8. **Magic link security criteria** (one test per criterion in §7.2):
-   - Plaintext token never in DB
-   - Expired token rejected
-   - Already-consumed token rejected
-   - Login endpoint rate-limited
-   - Login returns 200 for nonexistent email AND existing email (and no Resend call for nonexistent)
-   - Cookie attributes verified
+Tests verify **observable behavior** — what a hypothetical operator querying the DB and reading delivered emails would see — not implementation details. Re-implementations of internals should not break these tests.
+
+1. **Webhook happy path:**
+   Given: empty DB. Fire `checkout.session.completed` event.
+   Assert: a `subscribers` row exists for the buyer's email. A `subscriptions` row exists with `status='active'`, `sessions_remaining=2`, and `welcome_email_status='sent'`. An `auth_tokens` row exists for that subscriber. A welcome email was delivered to the buyer's email (verify via test Resend mailbox or mock).
+
+2. **Capacity race (full cap):**
+   Given: DB seeded with 8 rows in `subscriptions` with `status='active'`. Fire a 9th `checkout.session.completed` event for a new email.
+   Assert: DB still has exactly 8 `active` subscription rows (no new row for the 9th user). The 9th user does **not** have an `auth_tokens` row. A race-condition email was delivered to the 9th user's email address (verify content offers waitlist link). The new user's `subscribers` row may or may not exist (acceptable either way — both compliant) but if it exists, no `subscriptions` row attaches to it.
+
+3. **Capacity with mixed statuses (B2):**
+   Given: DB seeded with 5 active + 3 canceled subscriptions for the product. Fire a new `checkout.session.completed` event.
+   Assert: DB has 6 `active` subscription rows. The new user has a welcome email. Canceled rows do not block the new subscription. This protects against a regression where `COUNT(*) WHERE status IN ('active','past_due')` accidentally becomes `COUNT(*)` without the filter.
+
+4. **Webhook idempotency (replay):**
+   Given: clean DB. Fire `checkout.session.completed` twice with the same `event.id`.
+   Assert: DB has exactly 1 subscription row, 1 subscriber row, 1 auth_token row, exactly 1 welcome email delivered.
+
+5. **Magic-link verify is single-use:**
+   Given: a valid unconsumed token in `auth_tokens`.
+   Step 1: `GET /api/auth/verify?token=...` → assert response sets a session cookie and redirects appropriately.
+   Step 2: same `GET /api/auth/verify?token=...` again → assert response is 401 (or redirect to login error page), no new session cookie issued.
+
+6. **Cancel flow (admin):**
+   Given: an active subscription. Admin calls `POST /api/admin/cancel-subscription`. Then fire the resulting `customer.subscription.updated` webhook event.
+   Assert: after the webhook is processed, the `subscriptions` row has `cancel_at_period_end=true` and `status='active'`. (We test the *outcome* — what the DB ends up showing — not which method on the Stripe SDK was called.)
+
+7. **Past_due → restore:**
+   Given: an active subscription. Fire `invoice.payment_failed`. Then fire `invoice.paid` (simulating retry success).
+   Assert: after `payment_failed`, the subscription row's `status='past_due'`. After `invoice.paid`, the row's `status='active'` and `sessions_remaining=2`.
+
+8. **Existing-active-sub double-payment guard (A2):**
+   Given: a user with an active subscription. Fire a second `checkout.session.completed` for the same email (simulating anonymous double-checkout).
+   Assert: DB still has exactly 1 subscription row for that subscriber. A "duplicate subscription" email was delivered (content distinct from race-condition email).
+
+9. **Magic-link security criteria** (one test per criterion in §7.2, observable form):
+   - **Plaintext token never in DB:** create token via login flow, query the entire DB for the plaintext token string → assert no match.
+   - **Expired token rejected:** create token, fast-forward clock past expiry, call verify → assert 401, no session cookie.
+   - **Already-consumed token rejected:** see test 5.
+   - **Login returns 200 for both existent and non-existent emails:** call `POST /api/auth/login` with a known email and an unknown email → assert both return 200 with response time within similar bound. For non-existent: assert no Resend delivery. For existent: assert exactly 1 Resend delivery.
+   - **Cookie attributes correct:** complete login flow, inspect the response `Set-Cookie` header → assert `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age` ≥ 30 days × 86400.
+   - **Logout deletes the session row:** create session, call logout, query `sessions` table → assert the row is gone. Then replay the old cookie to a protected route → assert 401.
+
+10. **Rate limit — per-IP exceed (B3):**
+    Given: clean state. Issue 6 sequential `POST /api/auth/login` requests from the same source IP within 1 minute.
+    Assert: requests 1–5 return 200, request 6 returns 429.
+
+11. **Rate limit — per-IP isolation (B3):**
+    Given: clean state. Issue 5 requests from `IP_A` and 5 requests from `IP_B`, interleaved within 1 minute.
+    Assert: all 10 return 200. (Guards against the regression where a global counter conflates per-IP buckets.)
 
 ### 15.2 Not tested (intentional, scaled to risk)
 
@@ -637,7 +791,7 @@ Per `ARCHITECTURE_AND_ROADMAP.md §5`:
 - LFPDPPP `/privacidad` reviewed by JP (and ideally a lawyer)
 - Resend domain verification still active
 - Stripe Customer Portal configured per §8.3
-- Welcome email template visually reviewed on mobile (Instagram in-app browser)
+- **All transactional emails visually rendered with real data and reviewed on mobile (Instagram in-app browser):** welcome email (magic link), race-condition email (refund + waitlist offer), duplicate-subscription email (refund + ya-tienes message), past_due banner-triggered email if any, sessions-reset notification if added. Verify: no `{{var}}` placeholders remain unrendered, all links resolve to real URLs, sender domain matches `portalespiritual.com.mx`, copy reads correctly in Spanish.
 
 ---
 
@@ -661,7 +815,7 @@ Per `ARCHITECTURE_AND_ROADMAP.md §5`:
 | D14 | "Mark inactive" manually | Out of scope; admin only cancels via Stripe (which webhook mirrors) |
 | D15 | Email change | Subscriber cannot edit; admin endpoint exists; SQL in Phase 6 |
 | D16 | Cancel timing | `cancel_at_period_end = true` |
-| D17 | Migrations | Drizzle Kit, forward-only, manual application before merge |
+| D17 | Migrations | Drizzle Kit, forward-only, applied automatically via Vercel `prebuild` script |
 | D18 | API placement | Route handlers for external/auth; Server Actions for forms; Server Components for reads |
 | D19 | Phase 7 reuse | `products.kind` + jsonb metadata; subscribers table generic |
 | D20 | Critical tests | 8 integration tests (§15.1) |
@@ -669,18 +823,30 @@ Per `ARCHITECTURE_AND_ROADMAP.md §5`:
 
 ---
 
-## 17. Open items for writing-plans
+## 17. Open items for writing-plans + pre-writing-plans actions
 
-These are *implementation* questions, not *design* questions. They get resolved during plan-writing, not now.
+### 17.1 Hard blockers — must complete BEFORE invoking writing-plans
 
-- Exact wording / visual treatment of welcome email and race email
+- **ROADMAP reconciliation (D2 from review B5):**
+  The user has WIP edits on `docs/ARCHITECTURE_AND_ROADMAP.md` that rewrote §4 to state "Modo de lanzamiento: completo, no MVP" with admin included in Phase 6. This contradicts the **committed** ROADMAP and `docs/PROJECT_CONTEXT.md:125`, both of which scope a full admin to Phase 6.5. The brainstorming-agreed decision is: **admin minimal in Phase 6, full admin in Phase 6.5.** Before writing-plans starts:
+  1. Discard or revise the WIP ROADMAP edits on a separate `chore/reconcile-admin-scope` branch.
+  2. Update §4 to explicitly state the split: minimal admin in Phase 6 (per this spec §9), full admin in Phase 6.5.
+  3. Verify PROJECT_CONTEXT and ROADMAP both name the split consistently.
+  4. Merge the chore branch to main before kicking off writing-plans.
+
+### 17.2 Implementation questions (resolved during plan-writing)
+
+- Exact wording / visual treatment of welcome email and the **two** failure-path emails:
+  - Race-condition email — **must include**: clear apology, confirmation that the refund is automatic, expected timeline (5-10 business days for the bank to reflect the credit), and a one-click waitlist signup link (`/mentoria/waitlist?email=...`). Without the timeline, the customer checks their statement for weeks. (C5 from review B5.)
+  - Duplicate-subscription email — distinct from race: "Detectamos que ya tienes una suscripción activa, te reembolsamos, ve a /cuenta" + same refund-timing reassurance.
 - Exact wording on `/privacidad`
 - Whether waitlist notification tracking gets a dedicated `/admin/waitlist` page in Phase 6 or stays SQL-only
 - Whether the home-page mentoría card duplicates exactly the `/mentoria` card or differs
 - Specific Tailwind class scaffolding for the new section
 - Exact env-var names and their secrets handling per Vercel environment
 - First migration must enable Postgres extensions: `citext` (for case-insensitive email) and `pgcrypto` (if using `gen_random_uuid()`)
-- Specific choice between DB-backed rate-limit and Upstash for `/api/auth/login`
+- Whether `welcome_email_status` needs Resend bounce-webhook integration in Phase 6 or stays manual until 6.5
+- Whether the rate_limit_attempts cleanup runs as a Vercel cron job or is deferred (size-driven decision)
 
 ---
 
@@ -691,4 +857,42 @@ These are *implementation* questions, not *design* questions. They get resolved 
 - `CLAUDE.md` — code conventions for this repo
 - LFPDPPP — Ley Federal de Protección de Datos Personales en Posesión de los Particulares (Mexico)
 - Stripe Subscriptions docs — billing cycles, Smart Retries, Customer Portal
+- Stripe Smart Retries — [docs.stripe.com/billing/revenue-recovery/smart-retries](https://docs.stripe.com/billing/revenue-recovery/smart-retries) (recommended default: up to 8 retries over 2 weeks; ML-optimized timing)
 - Drizzle ORM + Neon serverless adapter
+
+---
+
+## 19. Revision history
+
+### v2 — 2026-05-12 (this revision)
+
+Incorporates 16 issues from review B5:
+
+**P0 (blocked writing-plans):**
+- A1 — Migrations strategy switched from "manual local against prod" to automated `prebuild` predeploy script via Vercel (§11).
+- A2 — Added pre-checkout guard (logged-in active subscriber → 409) and webhook fallback (partial-index violation → cancel + refund + duplicate-subscription email). New §6.1.1. Test 8 added in §15.1.
+- B1 — Rewrote tests 2, 4, 6 (and others) in §15.1 to verify observable behavior rather than implementation details.
+- C1 — Added §13.3 covering Resend failure modes; added `welcome_email_status` column to `subscriptions`; admin "Reenviar welcome email" action.
+- C2 — Added §13.2 (replay-safe webhook model with idempotency keys on every Stripe API call; stripe_events row inserted at commit point) and §13.4 (refund failure handling).
+- D1 — Replaced approximate Stripe Smart Retries language with the actual recommended default (8 retries over 2 weeks, ML-optimized), with justification for using defaults. Source linked in §18.
+- D2 — Documented in §17.1 the ROADMAP reconciliation requirement (chore branch before writing-plans).
+
+**P1 (fix before execution):**
+- A3 — Explicit spot-occupancy note: past_due holds spot for full retry window; only manual cancel frees early (§6.5 last paragraph).
+- A4 — `customer.subscription.created` added to §13.1 webhook table as no-op with rationale.
+- B2 — Added "mixed-status capacity" integration test (§15.1 test 3).
+- B3 — Split rate-limit test into per-IP exceed (test 10) and per-IP isolation (test 11).
+- C3 — Profile-form gate now field-level (`name OR instagram_handle OR date_of_birth IS NULL`); `profile_completed_at` reduced to audit timestamp (§7.4, §8.1).
+- C4 — Magic-link tokens get a `kind` column; `welcome` tokens expire in 7 days, `login` tokens in 15 minutes (§3.6, §7.2 criterion 2).
+- D3 — Rate-limit decision closed: DB-backed `rate_limit_attempts` table (new §3.9, §7.2 criterion 4).
+- D4 — Rewrote §6.3 with honest cost statement of webhook delay (Instagram DM fallback acknowledged).
+
+**P2 (review during plan):**
+- A5 — `MentoriaCard` is one component with `capacityFull: boolean` prop (§4, §14).
+- B4 — Pre-launch checklist (§15.3) now explicitly requires visual review of all transactional emails with real data on mobile.
+- C5 — Race-condition email copy requirements (refund timing 5-10 días hábiles, reassurance) added to §17.2 as a constraint for writing-plans.
+- D5 — `consent_privacy_version` format defined: ISO date string matching `PRIVACY_VERSION` constant in `/privacidad/page.tsx` (§3.4).
+
+### v1 — 2026-05-12 (initial)
+
+Initial spec from brainstorming session. Closed D1–D21 from `ARCHITECTURE_AND_ROADMAP.md`. Self-reviewed for placeholders/contradictions before user review.
