@@ -12,9 +12,15 @@ async function main() {
     currency: 'MXN',
     capacity: 8,
     stripePriceId: env.STRIPE_PRICE_ID_MENTORIA,
-    stripeProductId: 'prod_placeholder',
+    stripeProductId: 'prod_UV4jAxf6bKDQmr',
     metadata: sql`'{}'::jsonb`,
-  }).onConflictDoNothing({ target: products.slug });
+  }).onConflictDoUpdate({
+    target: products.slug,
+    set: {
+      stripePriceId: env.STRIPE_PRICE_ID_MENTORIA,
+      stripeProductId: 'prod_UV4jAxf6bKDQmr',
+    },
+  });
   console.log('seeded mentoría product');
   process.exit(0);
 }
