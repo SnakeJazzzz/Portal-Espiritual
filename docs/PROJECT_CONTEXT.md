@@ -122,7 +122,10 @@ src/
 - Auth de usuarios finales con password (Phase 6+ usa magic link via email)
 - Backend separado (FastAPI, etc.) — todo en Next.js API routes
 - Librerías pesadas de animación (particles.js, three.js, framer-motion agresivo)
-- Dashboard admin completo en Phase 6 (eso es Phase 6.5)
+- Dashboard admin **completo** (con edición de campos personales del
+  suscriptor, notas internas, búsqueda, filtros, exportación) — eso es
+  Phase 6.5. Phase 6 sí incluye un admin **mínimo** (lista, edición de
+  sesiones, cancelación).
 - Cursos y meditaciones (Phase 7+)
 
 ---
