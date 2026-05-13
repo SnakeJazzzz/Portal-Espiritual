@@ -11,5 +11,12 @@ const envSchema = z.object({
   ADMIN_SEED_EMAIL: z.string().email().optional(),
 });
 
-export const env = envSchema.parse(process.env);
 export type Env = z.infer<typeof envSchema>;
+
+let cached: Env | undefined;
+
+export function getEnv(): Env {
+  if (cached) return cached;
+  cached = envSchema.parse(process.env);
+  return cached;
+}

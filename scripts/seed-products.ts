@@ -1,9 +1,10 @@
 import { db } from '@/db/client';
 import { products } from '@/db/schema';
-import { env } from '@/lib/env';
+import { getEnv } from '@/lib/env';
 import { sql } from 'drizzle-orm';
 
 async function main() {
+  const env = getEnv();
   await db.insert(products).values({
     kind: 'subscription',
     slug: 'mentoria-1a1',
