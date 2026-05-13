@@ -128,8 +128,16 @@ viola.
 
 ## 4. Alcance de Phase 6
 
-Modo de lanzamiento: **completo, no MVP**. Esto significa que Phase 6 incluye
-tanto el flujo del suscriptor como el panel admin desde el inicio.
+Modo de lanzamiento: **completo del lado del suscriptor; mínimo del lado
+admin**. Phase 6 incluye el flujo completo del suscriptor (registro,
+checkout, dashboard, cancelación, edición de perfil) Y un panel admin
+mínimo (lista de suscriptores, edición de sesiones restantes, cancelación
+de suscripciones). El panel admin completo (edición de campos personales,
+notas internas, búsqueda, filtros, exportación) se difiere a Phase 6.5.
+
+Esta decisión se cerró en el brainstorming del 2026-05-12. Ver
+`docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md` §1 y §9
+para el alcance exacto.
 
 ### Flujo del suscriptor (público)
 
