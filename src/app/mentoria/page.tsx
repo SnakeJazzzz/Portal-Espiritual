@@ -23,6 +23,7 @@ export default async function MentoriaPage({
             Tu suscripción quedó pendiente. Dale otra vez al botón cuando estés listo.
           </p>
         )}
+        {/* TODO(S9): wire to WaitlistModal via a client wrapper (server→client cannot pass functions) */}
         <MentoriaCard capacityFull={isFull(cap)} />
       </main>
     </div>

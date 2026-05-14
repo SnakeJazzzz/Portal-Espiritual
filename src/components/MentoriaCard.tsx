@@ -20,6 +20,7 @@ export default function MentoriaCard({ capacityFull, onWaitlistClick }: Mentoria
         window.location.href = url;
       } else {
         const body = await res.json().catch(() => ({}));
+        // TODO(S7): replace alert with toast
         alert(body.message ?? 'No se pudo iniciar el checkout. Intenta de nuevo.');
       }
     });

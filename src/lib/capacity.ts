@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 export async function getCapacity(productSlug: string): Promise<{ used: number; total: number | null }> {
   const product = await db.query.products.findFirst({ where: eq(products.slug, productSlug) });
   if (!product) throw new Error(`Unknown product: ${productSlug}`);
+  // TODO(S3): query active subs
   return { used: 0, total: product.capacity };
 }
 
