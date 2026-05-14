@@ -60,6 +60,46 @@ Initial attempt to stub `onWaitlistClick={() => {}}` from the `/mentoria` server
 
 ---
 
+## Phase 6 — Slice 3: Webhook Foundation + S3→S4 Bundle Fixes - May 14, 2026
+
+**Status:** S3 complete (webhook handler, 3/3 tests green, signature verification, idempotent commit-at-end dispatcher). Smoke test against real Stripe CLI confirmed end-to-end flow. Pre-S4 bundle resolves 3 `Important` code-quality findings + records 2 operational learnings.
+
+### Bundle fixes applied (this commit)
+
+- **Webhook error log scrub.** `src/app/api/webhooks/stripe/route.ts`: replaced `console.error(..., { ..., err })` with `{ ..., message: err instanceof Error ? err.message : String(err) }`. Drizzle/Postgres errors can include query payloads (subscriber email is PII); serializing the full err to Vercel logs is a leak. Audit of `src/lib/webhooks/`, `src/lib/email.ts`, `src/lib/auth-tokens.ts` found no other `console.error(..., err)` patterns.
+- **Type-cast tightening.** `src/app/api/webhooks/stripe/route.ts`: changed `payload: event as any` to `payload: event as unknown as Record<string, unknown>`. Prevents `any` from poisoning the inferred type of any future caller that reads `stripe_events.payload`.
+
+### Operational pattern: manual SQL outside the Drizzle snapshot
+
+Two cases so far where production SQL exists outside `drizzle-kit`'s snapshot:
+
+1. `src/db/migrations/0000_init.sql` — `CREATE EXTENSION IF NOT EXISTS citext;` and `pgcrypto;` prepended manually (required for `subscribers.email` citext + `gen_random_uuid()`).
+2. `src/db/migrations/0001_subscriptions.sql` — partial unique index `subscriptions_active_subscriber_per_product ... WHERE status IN ('active', 'past_due')` appended manually (Drizzle Kit doesn't yet express partial unique indexes declaratively).
+
+**Risk.** `drizzle-kit generate` diffs against `meta/*_snapshot.json`. Both manual artifacts are invisible to the snapshot, so future regenerations could:
+- silently drop knowledge of the extensions (matters only on fresh DBs without them)
+- generate a migration that conflicts with the partial index (e.g., proposing a regular UNIQUE index without the WHERE clause)
+
+**Mitigation pattern (use for every future migration in this phase):**
+- Before running `npm run db:migrate` on a freshly generated `*.sql`, **read the file** and confirm it doesn't `DROP INDEX subscriptions_active_subscriber_per_product` or `DROP EXTENSION`.
+- If it would, edit the generated SQL manually before applying.
+- Long-term (Phase 6.5 or later): consider isolating the partial index into a dedicated raw-SQL migration with a CHANGELOG note, or migrate to a tool that models these natively.
+
+**For S4 Task 4.1 (sessions table generation):** verify the generated `0002_sessions.sql` (or similar) does not touch `subscriptions`. Adding only a new table should produce a clean additive migration.
+
+### Smoke test learnings (Task 3.9 — `stripe listen`)
+
+- **Stripe CLI account mismatch produced a silent false negative on first attempt.** The CLI was authenticated to a different Stripe account than the project's (`sk_test_` in `.env.local` points to `acct_1TW46YPwEjHy5wNA`, the Phase 6 account). `stripe listen --forward-to ...` ran without error but events fired in the CLI's account never reached the local handler. Fix: `stripe logout` → `stripe login` → confirm the displayed account ID matches the project. After re-auth: 12 forwarded events, all `[200]`, subscriber + subscription + `welcome_email_status='sent'` rows created, Resend delivered the welcome email.
+- **Mitigation pattern (project setup checklist):** before any Stripe smoke test, run `stripe config --list` and verify `display_name` / account ID matches the `sk_test_` in `.env.local`. Worth adding to `docs/AI_SETUP_AND_WORKFLOW.md` when next touched.
+
+### Observation: Stripe account default API version drifts with Stripe releases
+
+- The project's Stripe account currently defaults to API version `2026-02-25.clover` (this changes whenever Stripe ships a new release). Our SDK is pinned to `'2025-02-24.acacia'` for compatibility with `stripe@17.7.0`.
+- Stripe converts the webhook payload to the SDK's pinned `apiVersion` server-side, so the version drift is **not a runtime risk today**.
+- **When `stripe` SDK is bumped to v18+ in Phase 6.5 or later:** move `apiVersion` in `src/lib/stripe.ts` to the SDK's `LatestApiVersion` at that time (which should be the contemporary `*.clover` release). Re-test the post-Basil items.data[0] code path — Stripe's "Basil" 2025-03-31 change is what triggered the type assertion in `handle-checkout-completed.ts`, and a newer SDK should model those fields natively.
+
+---
+
 ## Phase 5: Font Migration and Typography Refinements - March 5, 2026
 
 **Status:** COMPLETED

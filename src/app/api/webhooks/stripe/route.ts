@@ -39,11 +39,15 @@ export async function POST(req: NextRequest) {
     await db.insert(stripeEvents).values({
       stripeEventId: event.id,
       type: event.type,
-      payload: event as any,
+      payload: event as unknown as Record<string, unknown>,
     });
     return NextResponse.json({ received: true });
   } catch (err) {
-    console.error('webhook handler failed; will be retried by Stripe', { eventId: event.id, type: event.type, err });
+    console.error('webhook handler failed; will be retried by Stripe', {
+      eventId: event.id,
+      type: event.type,
+      message: err instanceof Error ? err.message : String(err),
+    });
     return new NextResponse('handler error; retry', { status: 500 });
   }
 }
