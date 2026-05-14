@@ -105,14 +105,20 @@ describe('Test 9 — Magic-link security criteria', () => {
     // the spec calls for.
     expect(lastSet.name).toBe('pe_session');
     expect(lastSet.opts?.httpOnly).toBe(true);
-    expect(lastSet.opts?.secure).toBe(true);
+    // We read process.env directly (not getEnv()) because we're verifying
+    // that createSession's secure flag matches APP_URL at runtime. Using
+    // getEnv() here would tautologically pass even if createSession's
+    // implementation diverged from APP_URL.
+    const expectSecure = (process.env.APP_URL ?? '').startsWith('https://');
+    expect(lastSet.opts?.secure).toBe(expectSecure);
     expect(String(lastSet.opts?.sameSite).toLowerCase()).toBe('lax');
     expect(lastSet.opts?.path).toBe('/');
     expect(Number(lastSet.opts?.maxAge)).toBeGreaterThanOrEqual(30 * 86400);
 
     const sc = buildSetCookieFromLast();
     expect(sc).toMatch(/HttpOnly/i);
-    expect(sc).toMatch(/Secure/i);
+    if (expectSecure) expect(sc).toMatch(/Secure/i);
+    else expect(sc).not.toMatch(/Secure/i);
     expect(sc).toMatch(/SameSite=Lax/i);
     expect(sc).toMatch(/Path=\//);
     const maxAge = Number((sc.match(/Max-Age=(\d+)/i) ?? [])[1] ?? 0);

@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { sessions, subscribers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
+import { getEnv } from '@/lib/env';
 
 const COOKIE_NAME = 'pe_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -14,7 +15,7 @@ export async function createSession(subscriberId: string) {
   await db.insert(sessions).values({ id, subscriberId, expiresAt });
   (await cookies()).set(COOKIE_NAME, id, {
     httpOnly: true,
-    secure: true,
+    secure: getEnv().APP_URL.startsWith('https://'),
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
