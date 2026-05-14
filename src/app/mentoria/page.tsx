@@ -16,7 +16,10 @@ export default async function MentoriaPage({
       <StarField />
       <main className="relative z-10 px-4 py-16 max-w-2xl mx-auto">
         {checkout === 'canceled' && (
-          <p className="mb-8 text-center text-portal-text/80">
+          <p
+            role="status"
+            className="mb-8 px-6 py-4 rounded-xl bg-portal-gold/10 border border-portal-gold/30 text-center text-base lg:text-lg text-portal-text"
+          >
             Tu suscripción quedó pendiente. Dale otra vez al botón cuando estés listo.
           </p>
         )}
