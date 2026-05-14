@@ -63,3 +63,14 @@ export async function requireAdmin() {
   if (ctx.subscriber.role !== 'admin') redirect('/');
   return ctx;
 }
+
+export function isProfileComplete(
+  subscriber: { name: string | null; instagramHandle: string | null; dateOfBirth: string | null } | null | undefined,
+): boolean {
+  if (!subscriber) return false;
+  return (
+    subscriber.name !== null &&
+    subscriber.instagramHandle !== null &&
+    subscriber.dateOfBirth !== null
+  );
+}

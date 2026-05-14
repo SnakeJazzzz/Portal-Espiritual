@@ -28,7 +28,7 @@ export async function submitProfile(_prev: { error: string | null }, formData: F
     phone: data.phone || null,
     timezone: data.timezone,
     notesFromSubscriber: data.notes_from_subscriber || null,
-    profileCompletedAt: new Date(),
+    profileCompletedAt: subscriber.profileCompletedAt ?? new Date(),
     updatedAt: new Date(),
   }).where(eq(subscribers.id, subscriber.id));
   redirect('/cuenta');

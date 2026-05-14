@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { consumeAuthToken } from '@/lib/auth-tokens';
-import { createSession } from '@/lib/auth';
+import { createSession, isProfileComplete } from '@/lib/auth';
 import { db } from '@/db/client';
 import { subscribers } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,6 +22,6 @@ export async function GET(req: NextRequest) {
   await createSession(consumed.subscriberId);
   const sub = await db.query.subscribers.findFirst({ where: eq(subscribers.id, consumed.subscriberId) });
   if (sub?.role === 'admin') return NextResponse.redirect(`${env.APP_URL}/admin`);
-  const needsProfile = !sub?.name || !sub?.instagramHandle || !sub?.dateOfBirth;
-  return NextResponse.redirect(`${env.APP_URL}${needsProfile ? '/cuenta/perfil' : '/cuenta'}`);
+  const target = isProfileComplete(sub) ? '/cuenta' : '/cuenta/perfil';
+  return NextResponse.redirect(`${env.APP_URL}${target}`);
 }
