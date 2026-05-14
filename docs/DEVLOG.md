@@ -34,6 +34,32 @@ Established the runtime foundation for Phase 6 (Mentoría 1-a-1 subscription). A
 
 ---
 
+## Phase 6 — Slice 2: Manual QA Findings - May 13, 2026
+
+**Status:** S2 (public `/mentoria` page + Stripe Hosted Checkout redirect) complete. Manual QA at 375px surfaced three follow-ups — two fixed inline, one deferred to Phase 6.5.
+
+### Manual QA results
+
+1. **First-attempt Stripe Checkout decline.** Test card `4242 4242 4242 4242` was declined on the first attempt; second attempt with the same card succeeded. Suspected Stripe Radar or Link auto-test interference in the sandbox. Non-deterministic. Logged for **Phase 6.5 — "decline handling telemetry"**. If it persists with real card flows or surfaces in Sentry once webhooks land in S3, investigate.
+2. **StarField missing on new pages.** `/mentoria` and `/gracias` lacked the StarField background that defines the project's visual signature (per `CLAUDE.md`). Fixed in `304dbf0` — both pages now wrap content with the same `<StarField />` + `relative z-10 main` pattern as the homepage.
+3. **Cancel-checkout banner too small.** The "Tu suscripción quedó pendiente" message on `/mentoria?checkout=canceled` was rendering as small grey text. Fixed in `1bf6e42` — now uses `bg-portal-gold/10` panel with `border-portal-gold/30`, generous padding, `text-base lg:text-lg` size, and `role="status"` for screen readers.
+
+### Deferred TODOs anchored in code (`4f19a76`)
+
+- `MentoriaCard.tsx`: `// TODO(S7): replace alert with toast`
+- `capacity.ts`: `// TODO(S3): query active subs` (above `used: 0` hardcode)
+- `/mentoria page.tsx`: `// TODO(S9): wire to WaitlistModal via a client wrapper (server→client cannot pass functions)`
+
+### Discovered constraint: server → client function props
+
+Initial attempt to stub `onWaitlistClick={() => {}}` from the `/mentoria` server component crashed the page with HTTP 500: *"Event handlers cannot be passed to Client Component props."* The waitlist wiring in S9 needs an intermediate Client Component wrapper (e.g. `MentoriaCardWrapper` that owns the modal state) rather than passing a handler down from a server page. Captured in the S9 TODO above.
+
+### Other carry-overs beyond S2 scope
+
+- **Stripe SDK `apiVersion` substitution.** Plan specified `'2025-09-30.clover'` but `stripe@17.7.0` ships at most `'2025-02-24.acacia'` as `LatestApiVersion`. Substituted in `src/lib/stripe.ts`. Bump and revisit when the SDK reaches v18+.
+
+---
+
 ## Phase 5: Font Migration and Typography Refinements - March 5, 2026
 
 **Status:** COMPLETED
