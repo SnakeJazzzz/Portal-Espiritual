@@ -76,3 +76,11 @@ export const stripeEvents = pgTable('stripe_events', {
   payload: jsonb('payload').notNull(),
   processedAt: timestamp('processed_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const sessions = pgTable('sessions', {
+  id: text('id').primaryKey(),
+  subscriberId: uuid('subscriber_id').notNull().references(() => subscribers.id),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
+});
