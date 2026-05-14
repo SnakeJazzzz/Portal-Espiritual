@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, integer, jsonb, timestamp, pgEnum,
+  pgTable, uuid, text, integer, jsonb, timestamp, pgEnum, boolean, customType,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -17,4 +17,62 @@ export const products = pgTable('products', {
   stripeProductId: text('stripe_product_id').notNull(),
   metadata: jsonb('metadata').default(sql`'{}'::jsonb`),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+const citext = customType<{ data: string }>({
+  dataType() { return 'citext'; },
+});
+
+export const subscriberRole = pgEnum('subscriber_role', ['subscriber', 'admin']);
+export const subscriptionStatus = pgEnum('subscription_status', ['active', 'past_due', 'canceled']);
+export const welcomeEmailStatus = pgEnum('welcome_email_status', ['pending', 'sent', 'failed', 'bounced']);
+export const authTokenKind = pgEnum('auth_token_kind', ['welcome', 'login']);
+
+export const subscribers = pgTable('subscribers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: citext('email').notNull().unique(),
+  role: subscriberRole('role').notNull().default('subscriber'),
+  stripeCustomerId: text('stripe_customer_id'),
+  name: text('name'),
+  instagramHandle: text('instagram_handle'),
+  dateOfBirth: text('date_of_birth'),
+  phone: text('phone'),
+  timezone: text('timezone').notNull().default('America/Mexico_City'),
+  notesFromSubscriber: text('notes_from_subscriber'),
+  profileCompletedAt: timestamp('profile_completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  subscriberId: uuid('subscriber_id').notNull().references(() => subscribers.id),
+  productId: uuid('product_id').notNull().references(() => products.id),
+  status: subscriptionStatus('status').notNull(),
+  stripeSubscriptionId: text('stripe_subscription_id').notNull().unique(),
+  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull(),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
+  sessionsRemaining: integer('sessions_remaining').notNull(),
+  welcomeEmailStatus: welcomeEmailStatus('welcome_email_status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const authTokens = pgTable('auth_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tokenHash: text('token_hash').notNull().unique(),
+  subscriberId: uuid('subscriber_id').notNull().references(() => subscribers.id),
+  kind: authTokenKind('kind').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const stripeEvents = pgTable('stripe_events', {
+  stripeEventId: text('stripe_event_id').primaryKey(),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }).defaultNow().notNull(),
 });
