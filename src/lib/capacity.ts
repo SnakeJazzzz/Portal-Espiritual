@@ -1,14 +1,18 @@
 import { db } from '@/db/client';
-import { products } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { products, subscriptions } from '@/db/schema';
+import { and, count, eq, inArray } from 'drizzle-orm';
 
-// In S3 we add the subscriptions table. Until then, the active count is always 0.
-// This function is updated in S3 (Task 3.x) to actually query subscriptions.
-export async function getCapacity(productSlug: string): Promise<{ used: number; total: number | null }> {
+export async function getCapacity(productSlug: string): Promise<{ used: number; total: number | null; productId: string }> {
   const product = await db.query.products.findFirst({ where: eq(products.slug, productSlug) });
   if (!product) throw new Error(`Unknown product: ${productSlug}`);
-  // TODO(S3): query active subs
-  return { used: 0, total: product.capacity };
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(subscriptions)
+    .where(and(
+      eq(subscriptions.productId, product.id),
+      inArray(subscriptions.status, ['active', 'past_due']),
+    ));
+  return { used: Number(value), total: product.capacity, productId: product.id };
 }
 
 export function isFull({ used, total }: { used: number; total: number | null }): boolean {
