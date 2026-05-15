@@ -42,6 +42,46 @@ export function makeSubscriptionUpdatedEvent(opts: {
   } as Stripe.Event;
 }
 
+export function makeInvoicePaidEvent(eventId: string, stripeSubscriptionId: string): Stripe.Event {
+  return {
+    id: eventId,
+    object: 'event',
+    api_version: '2025-02-24.acacia',
+    created: Math.floor(Date.now() / 1000),
+    livemode: false,
+    pending_webhooks: 0,
+    request: { id: null, idempotency_key: null },
+    type: 'invoice.paid',
+    data: {
+      object: {
+        id: `in_${eventId}`,
+        object: 'invoice',
+        subscription: stripeSubscriptionId,
+      } as any,
+    },
+  } as Stripe.Event;
+}
+
+export function makeInvoicePaymentFailedEvent(eventId: string, stripeSubscriptionId: string): Stripe.Event {
+  return {
+    id: eventId,
+    object: 'event',
+    api_version: '2025-02-24.acacia',
+    created: Math.floor(Date.now() / 1000),
+    livemode: false,
+    pending_webhooks: 0,
+    request: { id: null, idempotency_key: null },
+    type: 'invoice.payment_failed',
+    data: {
+      object: {
+        id: `in_${eventId}`,
+        object: 'invoice',
+        subscription: stripeSubscriptionId,
+      } as any,
+    },
+  } as Stripe.Event;
+}
+
 export function makeCheckoutCompletedEvent(opts: {
   eventId: string;
   email: string;

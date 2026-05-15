@@ -3,7 +3,11 @@ import { db } from '@/db/client';
 import { subscribers, subscriptions, products } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { POST } from '@/app/api/webhooks/stripe/route';
-import { makeSubscriptionUpdatedEvent } from '../helpers/stripe-fixture';
+import {
+  makeSubscriptionUpdatedEvent,
+  makeInvoicePaidEvent,
+  makeInvoicePaymentFailedEvent,
+} from '../helpers/stripe-fixture';
 import { mapStatus } from '@/lib/webhooks/handle-subscription-updated';
 
 // Mock Stripe SDK calls used by the route's signature verification.
@@ -99,5 +103,46 @@ describe('Test 6 — Cancel flow', () => {
     expect(updated?.cancelAtPeriodEnd).toBe(true);
     expect(updated?.status).toBe('active');
     expect(updated?.canceledAt).toBeNull();
+  });
+});
+
+describe('Test 7 — Past_due → restore', () => {
+  it('payment_failed → past_due; invoice.paid → active + sessions reset to 2', async () => {
+    // Seed active sub with sessionsRemaining=0 (simulating mid-cycle usage)
+    const product = await db.query.products.findFirst({ where: eq(products.slug, 'mentoria-1a1') });
+    if (!product) throw new Error('mentoria product not seeded');
+    await db.insert(subscribers).values({ email: 'pastdue@example.com', stripeCustomerId: 'cus_pd_test' });
+    const subscriber = await db.query.subscribers.findFirst({ where: eq(subscribers.email, 'pastdue@example.com') });
+    if (!subscriber) throw new Error('subscriber seed failed');
+    const now = new Date();
+    await db.insert(subscriptions).values({
+      subscriberId: subscriber.id,
+      productId: product.id,
+      status: 'active',
+      stripeSubscriptionId: 'sub_pd_test',
+      currentPeriodStart: now,
+      currentPeriodEnd: new Date(now.getTime() + 30 * 86400 * 1000),
+      sessionsRemaining: 0, // simulate sessions already consumed
+    });
+
+    // 1. Payment failed → past_due
+    const failEv = makeInvoicePaymentFailedEvent('evt_pd_fail', 'sub_pd_test');
+    const r1 = await postWebhook(failEv);
+    expect(r1.status).toBe(200);
+    let s = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.stripeSubscriptionId, 'sub_pd_test'),
+    });
+    expect(s?.status).toBe('past_due');
+    expect(s?.sessionsRemaining).toBe(0); // payment_failed must NOT reset sessions
+
+    // 2. Retry succeeds → active + sessions reset
+    const paidEv = makeInvoicePaidEvent('evt_pd_paid', 'sub_pd_test');
+    const r2 = await postWebhook(paidEv);
+    expect(r2.status).toBe(200);
+    s = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.stripeSubscriptionId, 'sub_pd_test'),
+    });
+    expect(s?.status).toBe('active');
+    expect(s?.sessionsRemaining).toBe(2);
   });
 });
