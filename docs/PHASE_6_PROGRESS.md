@@ -206,7 +206,7 @@ De `docs/DEVLOG.md` entry de S5:
 - **`AbortController` para fetches en client components** que redirigen via `window.location.href`. Window navigation hace impacto near-zero hoy pero es el canonical pattern.
 - **InlineEditableField re-sync.** Local `value` state nunca re-sync con `initialValue` si parent re-renders con new server data. `revalidatePath('/cuenta')` causa server-side re-fetch — verificar comportamiento observado antes de añadir `useEffect` o `key={initialValue}`.
 - **Error display en InlineEditableField.** Si `onSave` throws, user ve spinner stop sin mensaje. Solo falla path es Zod hoy (no triggerable from controlled input). Cuando action grow, añadir try/catch slot con inline error.
-- **Pre-existing test-file `any` errors (9 de S3).** `tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx` — out of scope hasta Phase 6.5 polish.
+- **Pre-existing test-file `any` errors (9 de S3 + N de S6, contar al cierre de Phase 6).** `tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx` — out of scope hasta Phase 6.5 polish. S6 añadió nuevas introducciones de `as any` / `event: any` en `tests/integration/subscription-lifecycle.test.ts` siguiendo el patrón establecido en `webhook-happy-path.test.ts`.
 
 De otros DEVLOG entries:
 

@@ -98,5 +98,6 @@ describe('Test 6 — Cancel flow', () => {
     });
     expect(updated?.cancelAtPeriodEnd).toBe(true);
     expect(updated?.status).toBe('active');
+    expect(updated?.canceledAt).toBeNull();
   });
 });

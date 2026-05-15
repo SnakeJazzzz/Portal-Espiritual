@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
         await handleCheckoutCompleted(event);
         break;
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event); break;
+        await handleSubscriptionUpdated(event);
+        break;
       default:
         break;
     }
