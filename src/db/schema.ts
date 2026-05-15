@@ -84,3 +84,13 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const auditLog = pgTable('audit_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  adminId: uuid('admin_id').references(() => subscribers.id),  // nullable for system actions
+  action: text('action').notNull(),
+  targetSubscriberId: uuid('target_subscriber_id').references(() => subscribers.id),
+  before: jsonb('before'),
+  after: jsonb('after'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
