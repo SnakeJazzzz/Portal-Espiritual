@@ -20,7 +20,7 @@ export default function MentoriaCard({ capacityFull, onWaitlistClick }: Mentoria
         window.location.href = url;
       } else {
         const body = await res.json().catch(() => ({}));
-        if (body.redirect) {
+        if (typeof body.redirect === 'string') {
           window.location.href = body.redirect;
           return;
         }
