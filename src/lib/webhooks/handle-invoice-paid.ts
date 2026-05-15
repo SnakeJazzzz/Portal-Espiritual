@@ -5,8 +5,6 @@ import { eq } from 'drizzle-orm';
 
 export async function handleInvoicePaid(event: Stripe.Event) {
   const invoice = event.data.object as Stripe.Invoice;
-  // Stripe types invoice.subscription as expandable union (string | Stripe.Subscription | null).
-  // In webhook payloads it is always a string; narrow with typeof guard. No `as any`.
   const subRef = invoice.subscription;
   const subId = typeof subRef === 'string' ? subRef : (subRef?.id ?? null);
   if (!subId) return;
