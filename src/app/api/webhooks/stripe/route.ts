@@ -47,8 +47,7 @@ export async function POST(req: NextRequest) {
         break;
       case 'customer.subscription.created':
         // no-op per spec §13.1; subscription row is created in checkout.session.completed
-        // where we have buyer context. Recording the event below in stripe_events still
-        // marks it processed so Stripe stops retrying.
+        // where we have buyer context.
         break;
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event);
