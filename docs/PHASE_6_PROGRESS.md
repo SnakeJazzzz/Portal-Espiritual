@@ -2,7 +2,7 @@
 
 **Última actualización:** 2026-05-15
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `fix(cuenta): resolve S6 smoke findings + document test isolation gap` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `feat(webhook): S7 close-out — refund-path defense + final review minors` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -141,12 +141,44 @@ Decisiones tomadas durante S6:
 3. **Capacity semantics verificadas.** `getCapacity` en `src/lib/capacity.ts:13` filtra por `inArray(status, ['active', 'past_due'])`, no por presencia de fila. Confirma que cancelaciones liberan capacidad automáticamente al flip de status. S7 puede asumir esta semántica.
 4. **Smoke con `stripe trigger` limitado.** Eventos de lifecycle (`invoice.paid`, `payment_failed`, `subscription.deleted`) requieren Stripe test clocks para validar con payloads reales en development. `stripe trigger` envía eventos con payloads sintéticos que no corresponden a subs reales; `stripe invoices create` requiere customer existente sin pending invoice. Diferido a S11 pre-launch.
 
+### S7 — Capacity race + duplicate guards + failure-path emails (Tests 2, 3, 8) ✅
+
+Helper atómico `insertSubscriptionIfCapacity` (un solo SQL statement: INSERT … SELECT … WHERE COUNT < capacity RETURNING) que cierra la race S3 via unique constraint sobre `stripe_subscription_id`. Refactor de `handle-checkout-completed.ts` para branching `result.inserted` (happy path) vs `result.reason` (capacity_full / duplicate_subscription → refund path). 2 nuevos email templates (race + duplicate) con refund timing 5-10 días hábiles. Audit log table + helper `appendAudit` para system-initiated rows (`adminId: null`). Pre-checkout 409 guard en `POST /api/checkout/create` para subscribers logueados con sub activa + Stripe customer reuse para re-subscription post-cancel.
+
+Commits S7 (range `986d05d..HEAD`): 12 commits durante Gates A-D + este close-out commit = 13 total.
+
+- `69d0f6f` docs: add BUG-S7-edge-1 to Phase 6.5 backlog (launch blocker)
+- `ed49e7f` feat(db): audit_log table + appendAudit helper
+- `c45aea8` test(helpers): stateful Stripe mock that tracks refund state
+- `3661b4d` fix(audit): tighten audit.ts + stripe-mock-with-state.ts per code review
+- `57e318b` test(spec): satisfy spec tests 2 (race), 3 (mixed), 8 (duplicate) — RED at Gate B close
+- `57c46a3` feat(capacity): atomic insertSubscriptionIfCapacity (full + duplicate handling)
+- `b23b8de` feat(email): race-condition + duplicate-subscription templates with refund timing
+- `793a50f` chore: Gate B code-review minors — drop drift-prone line refs + log deferrals
+- `2fa8e11` feat(webhook): race-condition + duplicate-subscription refund paths
+- `e9b03c2` chore: Gate C code-review minors — atomicity WHY-comment + backlog updates
+- `e1a5d46` feat(checkout): pre-checkout 409 guard + Stripe customer reuse
+- `bfce921` chore: Gate D code-review minor — narrow body.redirect to string + log API typing sweep
+
+S7 close-out:
+- `[S7 close-out]` feat(webhook): S7 close-out — refund-path defense + final review minors (hash buscarlo en `git log --grep="S7 close-out"`)
+
+Tests: **23/23 PASS** (3 nuevos en S7: Test 2 capacity race + Test 3 mixed-status capacity + Test 8 duplicate-subscription). Subimos de 20/20 → 23/23. El I1 fix del close-out (refund-path defense para null `payment_intent`) mantuvo 23/23 PASS — el mock `stripe-mock-with-state` maneja correctamente el unconditional `cancel` call porque ambos test 2 y test 8 seedan la subscription en `stripeState` antes de disparar el webhook.
+
+Smoke manual S7: **Pendiente.** Discutir alcance con humano después de close-out commit. Refund flow + pre-checkout guard NO validados con eventos reales — solo tests de integración cubren los happy paths (race con 8 active, mixed status 5 active + 3 canceled, duplicate sub). Stripe Customer Portal cancel flow (heredado de S6 smoke) sí validado.
+
+Decisiones tomadas durante S7:
+
+1. **Advisory lock para race resolution rechazado tras verificación técnica.** Neon connection pool no garantiza session affinity para `pg_advisory_lock` (session-level); variante `pg_advisory_xact_lock` requiere transaction wrapper que rompe spec §13.2 (DB commits before external Stripe/Resend calls). La race está cerrada por unique constraint en `stripe_subscription_id` + check `result.inserted` del helper 7.2 — defense suficiente para nuestra escala. Backlog 6.5 item M3 documenta la race remanente entre subscribers distintos a capacity boundary con upgrade trigger (capacity > 30 cupos O primer caso observado en producción).
+2. **Empirical-first sobre `as any` / escape hatches.** Lección aplicada a través de gates: 0 nuevos `as any` introducidos en código de producción S7. Reviewer empíricamente caught 2 falsos positivos del drift list pre-implementación (Drizzle nullable jsonb accepts `unknown` directly; Stripe SDK signatures más estrictos de lo asumido). Regla codificada en `~/.claude/CLAUDE.md` developer global post-Gate-A.
+3. **mapStatus override de S6 preservado.** Verificado en cross-gate review — `handle-subscription-updated.ts:8` 5-branch body intacto; los 9 unit tests de mapStatus siguen GREEN. S7 no tocó dispatcher (cumplió scope discipline).
+4. **I1 fix close-out — refund-path defense.** `stripe.subscriptions.cancel` separado del guard `if (paymentIntentId)`. Cancel side-Stripe ahora unconditional para evitar orphan Stripe subscriptions cuando `payment_intent` es null. Refund creation sigue dependiendo de PI presence; rama else loggea `console.warn` con event_id + stripe_sub_id + reason para telemetría. Resuelve simultáneamente Gate-C-M1 trigger condition (setup-mode checkout futuro) y I1 (cross-gate reviewer finding). Code comment WHY agregado inline (no se documenta separadamente en backlog porque el código es self-documenting).
+
+Configuración externa S7: sin cambios. Stripe Customer Portal sigue configurado solo en test mode (live mode pending S11 pre-launch). Resend domain `portalespiritual.com.mx` verified. Stripe SDK pin a `'2025-02-24.acacia'` mantenido.
+
 ---
 
 ## Pendiente
-
-### S7 — Capacity race + duplicate guards (Tests 2, 3, 8)
-Resolver la race conocida deferida desde S3: dos webhooks concurrentes con el mismo `event.id` podrían crear 2 auth_tokens y 2 welcome emails. También: enforce capacity limit (`partial unique index` lo bloquea a nivel DB; surface al usuario como 409 + waitlist redirect). Duplicate subscription detection para usuarios re-subscribiendo después de cancelar.
 
 ### S8 — Login magic link + rate limit (Tests 9-remaining, 10, 11)
 `/api/auth/login` (POST email → magic link login token, 15-min TTL). Rate limit (table `rate_limit_attempts` ya planeada en S1). Tests: 9 timing-safe-comparison + 9 no-account-leak + 10 + 11.
@@ -271,3 +303,7 @@ Items S7 — Gate C code review findings (diferidos):
   **Mitigación trivial:** añadir `UNIQUE (event_id, action)` constraint en `audit_log` schema + cambiar `appendAudit` a `INSERT … ON CONFLICT DO NOTHING`. Requiere migration nueva (añadir `event_id` column también, ya que actualmente no existe). Defer al sweep de Phase 6.5 polish.
 
 - **API response typing sweep.** `src/app/api/checkout/create/route.ts` devuelve shapes diferentes por status code (200: `{url}`, 409: `{redirect}`, error: `{message}`). El consumer (`MentoriaCard.tsx`) usa `typeof` guards defensivos para narrowing porque `res.json()` es `any`. Cuando S9 o S10 toquen estos endpoints, considerar tipar con discriminated union compartida (e.g. tipo `CheckoutCreateResponse`) para eliminar el `any` en el client side. Mismo patrón aplica a `/api/billing-portal/create` y `/api/admin/cancel-subscription` para consistency.
+
+Items S7 — Gate E final review findings (diferidos):
+
+- **M-3 — `audit_log` writes uncovered by integration tests.** Tests 2/3/8 verifican los 3 observables principales (refund external state, email subject, DB capacity) pero NO querean `audit_log`. Si `appendAudit` silenciosamente fallara, el suite seguiría GREEN. Hoy aceptable porque `appendAudit` es 1 INSERT simple sin lógica condicional. **Upgrade trigger:** si Phase 7 (cursos) o Phase 8 (meditaciones) reusan `audit_log` para más event types, añadir coverage cross-cutting con assertions en `target_subscriber_id`.

@@ -77,16 +77,28 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   }
 
   // Refund path: both race + duplicate share the same Stripe-side mechanics.
-  // Cancel the subscription (so Stripe doesn't keep billing) then refund the
-  // initial payment intent. Idempotency keys are scoped to event.id so retries
-  // of the same Stripe webhook delivery don't double-cancel or double-refund.
+  // Cancel the Stripe-side subscription unconditionally — even if
+  // payment_intent is null (theoretical for mode='subscription',
+  // possible for future setup-mode products), we must not leave
+  // orphan Stripe subscriptions that continue billing without a
+  // matching DB row. Refund creation still depends on PI presence.
+  // Idempotency keys are scoped to event.id so retries of the same
+  // Stripe webhook delivery don't double-cancel or double-refund.
+  await stripe.subscriptions.cancel(
+    stripeSubscriptionId,
+    { invoice_now: false, prorate: false },
+    { idempotencyKey: `${event.id}:subscription_cancel` },
+  );
   if (paymentIntentId) {
-    await stripe.subscriptions.cancel(stripeSubscriptionId, { invoice_now: false, prorate: false }, {
-      idempotencyKey: `${event.id}:cancel`,
-    });
-    await stripe.refunds.create({ payment_intent: paymentIntentId }, {
-      idempotencyKey: `${event.id}:refund`,
-    });
+    await stripe.refunds.create(
+      { payment_intent: paymentIntentId },
+      { idempotencyKey: `${event.id}:refund` },
+    );
+  } else {
+    console.warn(
+      '[handle-checkout-completed] refund path with null payment_intent',
+      { eventId: event.id, stripeSubscriptionId, reason: result.reason },
+    );
   }
 
   if (result.reason === 'capacity_full') {
