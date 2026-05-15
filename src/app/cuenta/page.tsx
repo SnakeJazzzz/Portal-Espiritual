@@ -43,7 +43,18 @@ export default async function CuentaPage() {
 
       <section className="mt-8">
         <h2 className="text-xl font-heading text-white mb-2">Información personal</h2>
-        <p className="text-portal-text/60 text-sm">Email: {subscriber.email} (no editable)</p>
+        <p className="text-portal-text/70 text-sm mb-4">
+          Edita cualquier campo directamente. Los cambios se guardan al dar click en Guardar.
+        </p>
+        <div className="py-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-portal-text/70 text-sm">Email</span>
+            <span className="text-portal-text/50 text-xs">(no editable)</span>
+          </div>
+          <p className="block w-full text-left text-white text-lg mt-1 px-3 py-2 rounded border border-white/10 bg-white/[0.03]">
+            {subscriber.email}
+          </p>
+        </div>
         <InlineEditableField label="Nombre" initialValue={subscriber.name ?? ''} fieldName="name" onSave={updateSubscriberField} />
         <InlineEditableField label="Instagram" initialValue={subscriber.instagramHandle ?? ''} fieldName="instagram_handle" onSave={updateSubscriberField} />
         <InlineEditableField label="Teléfono" initialValue={subscriber.phone ?? ''} fieldName="phone" onSave={updateSubscriberField} />

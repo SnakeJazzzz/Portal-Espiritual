@@ -100,6 +100,30 @@ Two cases so far where production SQL exists outside `drizzle-kit`'s snapshot:
 
 ---
 
+## Phase 6 — Slice 5: Dashboard discoverability UI fixes + Phase 6.5 backlog - May 14, 2026
+
+**Status:** S5 (real dashboard + Customer Portal + portal config doc) complete. End-to-end smoke confirmed including the `profileCompletedAt` invariant (timestamp from first form submit survives 3 successive dashboard edits — fix S4 #2 is sound in production). Three UI discoverability fixes applied post-smoke to close S5 officially.
+
+### S5 post-smoke UI fixes (this commit)
+
+1. **InlineEditableField is now visibly editable.** Display mode wraps the value in a button with `border border-white/15`, `bg-white/5`, `hover:bg-white/10`, `hover:border-white/30`, `cursor-pointer`, `px-3 py-2 rounded`, `transition-colors`. Edit mode adds `autoFocus` on the input and a clearer focus ring via `focus:border-white/60 focus:outline-none`. Prior version rendered the value as plain text with no affordance — users had to guess it was clickable.
+2. **"✓ guardado" feedback on successful save.** After the server action resolves, a `text-portal-gold text-xs` indicator appears at the right of the field label and clears via `setTimeout(2000)`. Implemented with a local `saved` boolean (`useState` + `useEffect` cleanup) — does NOT modify the server action's signature (preserves the no-action-touch constraint). `role="status"`/`aria-live="polite"` for screen readers.
+3. **Section hint + email styled as a read-only field.** "Información personal" section now opens with a `text-portal-text/70 text-sm` instruction: "Edita cualquier campo directamente. Los cambios se guardan al dar click en Guardar." The email row was reformatted from a single greyish line to the same label-above / value-below pattern as the other fields, with a "(no editable)" hint in `text-portal-text/50 text-xs` to the right of the label, and a muted `border-white/10 bg-white/[0.03]` value box (visually distinct from the editable fields' brighter borders).
+4. **StarField added to `/cuenta` layout.** Previously the dashboard was missing the project's signature background. Now `src/app/cuenta/layout.tsx` wraps `requireAuth()` + `<StarField />` + `<div className="relative z-10">{children}</div>`. Applies to both `/cuenta` and `/cuenta/perfil` automatically.
+
+### Phase 6.5 backlog (do NOT fix in S6–S11)
+
+- **Inline-edit pattern post-launch feedback.** If JP reports that per-field click-to-edit feels clunky, consider refactoring to a unified "Editar / Guardar / Cancelar" pattern with all fields editable at once (more spreadsheet-like, less friction for bulk edits). Decision blocked on real-user feedback from S10 pre-launch UX pass.
+- **"Toque más profesional" en dashboard.** Catch-all for polish that should land before launch (S10) but isn't blocking S6–S9: typography tightening, icon for the ✓ indicator instead of text glyph, transitions between display/edit modes, error-state colors for failed saves. Reserve time in S10 polish pass; needs JP feedback to scope concretely.
+- **Auto-save vs explicit-save.** Current pattern is explicit Guardar. Unlikely to need debounce because save is button-triggered, not keystroke-triggered. IF future UX moves toward keystroke auto-save AND if profiling shows write amplification on Neon, add `300–500ms` debounce. Otherwise no action needed.
+- **`alert()` → toast.** Two sites still use blocking `alert()` for error UX (`MentoriaCard`, `PastDueBanner`, `ManageBillingButton`). Already tagged `TODO(Phase 6.5): replace alert with toast` in each. Pick a small toast library or write a minimal one when the polish pass lands.
+- **`AbortController` for in-flight fetches** in client components that redirect via `window.location.href`. Window navigation makes this near-zero-impact today but is the canonical pattern.
+- **InlineEditableField re-sync.** Local `value` state never re-syncs with `initialValue` if the parent re-renders with new server data. Today `revalidatePath('/cuenta')` causes a server-side re-fetch and the parent's `subscriber` reference changes, but this is implementation-dependent. Either `useEffect(() => setValue(initialValue), [initialValue])` or `key={initialValue}` on the field — confirm observed behavior first.
+- **Error display in InlineEditableField.** If `onSave` ever throws (DB outage, future schema mismatch), the user sees the spinner stop with no message. Today the only failure path is Zod, which the controlled input can't trigger. When the action grows, add a `try/catch` slot with an inline error.
+- **Pre-existing test-file `any` errors (9 from S3).** `tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx` — out of scope for S4–S10 but should be cleaned in Phase 6.5 polish.
+
+---
+
 ## Phase 5: Font Migration and Typography Refinements - March 5, 2026
 
 **Status:** COMPLETED
