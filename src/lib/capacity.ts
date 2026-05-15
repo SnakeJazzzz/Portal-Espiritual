@@ -33,7 +33,7 @@ export function isFull({ used, total }: { used: number; total: number | null }):
  *                                                     WHERE status IN ('active','past_due') rejected the row
  *
  * The constraint name `subscriptions_active_subscriber_per_product` is the partial
- * unique index created in migration 0001_subscriptions.sql:75. Verified by reading
+ * unique index created in migration 0001_subscriptions.sql. Verified by reading
  * that migration directly — Drizzle did not rename it.
  */
 export async function insertSubscriptionIfCapacity(params: {
@@ -65,7 +65,7 @@ export async function insertSubscriptionIfCapacity(params: {
     return { inserted: true };
   } catch (err) {
     const msg = String((err as Error).message ?? '');
-    // Partial unique index from migration 0001_subscriptions.sql:75.
+    // Partial unique index from migration 0001_subscriptions.sql.
     if (msg.includes('subscriptions_active_subscriber_per_product')) {
       return { inserted: false, reason: 'duplicate_subscription' };
     }
