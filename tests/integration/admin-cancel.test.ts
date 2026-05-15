@@ -3,6 +3,8 @@ import { db } from '@/db/client';
 import { subscribers, subscriptions, products } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
+// vi.mock factories are hoisted above top-level code; vi.hoisted is the supported way
+// to share a fn ref between the factory and the test body's assertions.
 const { stripeUpdate } = vi.hoisted(() => ({ stripeUpdate: vi.fn(async () => ({ id: 'sub_admin_cancel_test', cancel_at_period_end: true })) }));
 
 vi.mock('@/lib/stripe', async () => {
