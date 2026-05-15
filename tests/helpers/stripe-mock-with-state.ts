@@ -13,6 +13,8 @@ interface SubscriptionState {
   items: { data: Array<{ current_period_start: number; current_period_end: number }> };
 }
 
+// Methods rely on `this` binding; call as stripeState.method().
+// Destructuring (const { reset } = stripeState) breaks them.
 export const stripeState = {
   paymentIntents: new Map<string, PaymentIntentState>(),
   subscriptions: new Map<string, SubscriptionState>(),
@@ -53,7 +55,8 @@ vi.mock('@/lib/stripe', async () => {
         }),
         cancel: vi.fn(async (id: string) => {
           const s = stripeState.subscriptions.get(id);
-          if (s) s.status = 'canceled';
+          if (!s) throw new Error(`unknown subscription: ${id}`);
+          s.status = 'canceled';
           return s;
         }),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial-shape mock of Stripe SDK; full type would require restating dozens of methods
