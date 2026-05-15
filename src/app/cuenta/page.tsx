@@ -68,7 +68,7 @@ export default async function CuentaPage() {
           Status: <span className="font-semibold">{sub.status}{sub.cancelAtPeriodEnd ? ' (cancela al fin del período)' : ''}</span>
         </p>
         <p className="text-portal-text/80">
-          Próximo cobro: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}
+          {sub.cancelAtPeriodEnd ? 'Acceso termina' : 'Próximo cobro'}: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}
         </p>
         <p className="text-portal-text/60 text-sm mt-3">
           Si tienes dudas, escríbele a Juan Pablo por Instagram antes de cancelar.
@@ -77,7 +77,7 @@ export default async function CuentaPage() {
           <ManageBillingButton />
         </div>
         <form action="/api/auth/logout" method="post" className="mt-6">
-          <button className="text-portal-text/60 text-sm">Cerrar sesión</button>
+          <button type="submit" className="border border-white/40 text-white px-4 py-2 rounded">Cerrar sesión</button>
         </form>
       </section>
     </main>

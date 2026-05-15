@@ -1,8 +1,8 @@
 # Phase 6 — Progreso de Ejecución
 
-**Última actualización:** 2026-05-14
+**Última actualización:** 2026-05-15
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `748ad95 feat(cuenta): make inline-edit discoverable + fix email styling + verify StarField`
+**Último commit:** `fix(cuenta): resolve S6 smoke findings + document test isolation gap` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -106,29 +106,44 @@ UI fixes post-S5 smoke:
 
 Tests: **8/8 PASS** (sin tests nuevos en S5 por contrato del plan). Stripe Customer Portal configurado en test mode (return URL prod, cancellation end-of-period). Smoke manual end-to-end: dashboard, Customer Portal apertura sin JSON crudo, edit/save flow con "✓ guardado" feedback. `profileCompletedAt` invariant preservado tras 3 edits sucesivos (~51 min entre primer profileCompletedAt y último updatedAt).
 
+### S6 — Subscription lifecycle webhooks (Tests 6, 6b, 7) ✅
+
+4 nuevos handlers en `src/lib/webhooks/` + admin cancel route + 5 nuevos event-type cases en el dispatcher (4 reales + `customer.subscription.created` no-op) + `mapStatus` helper con override defensivo + 1 archivo de tests nuevo (`admin-cancel.test.ts`) + Test 6 + Test 6b + Test 7 + 9 mapStatus unit cases.
+
+Commits S6 (gates + cleanups, 12 commits):
+- `4a8c95e` feat(webhook): customer.subscription.updated handler with mapStatus
+- `7bec7b5` test(spec): satisfy spec test 6 (cancel flow) + mapStatus unit cases
+- `d821e48` fix(webhook): tighten Test 6 invariant + dispatcher style + update 6.5 backlog scope
+- `414cd03` feat(webhook): invoice.paid + invoice.payment_failed handlers
+- `b556203` test(spec): satisfy spec test 7 (past_due → restore)
+- `9411c70` chore(webhook): remove redundant comment from invoice.paid handler
+- `214cd62` feat(webhook): customer.subscription.deleted handler
+- `635179f` feat(webhook): dispatch customer.subscription.deleted + created no-op
+- `b5ed7e2` chore(webhook): trim no-op case comment to two lines
+- `98e4bd0` feat(api): POST /api/admin/cancel-subscription with requireAdmin guard
+- `d64b50a` test(spec): Test 6b — admin cancel route calls Stripe with cancel_at_period_end
+- `be1e1c3` chore(test): document vi.hoisted WHY in admin-cancel test
+
+Post-S6 smoke fixes:
+- `[S6 close-out]` fix(cuenta): resolve S6 smoke findings + document test isolation gap (hash buscarlo en `git log --grep="S6 smoke findings"`)
+
+Tests: **20/20 PASS** (12 nuevos en S6: Test 6, Test 6b, Test 7, + 9 `mapStatus` unit cases).
+
+Smoke manual S6: **validado parcial.**
+
+- **Validado con eventos reales de Stripe:** flujo end-to-end de nuevo subscriber (`/mentoria` → checkout → webhook → magic link email → `/cuenta`); Test 6 contract end-to-end vía Customer Portal (cancela pending correctamente seteada con `status='active', cancelAtPeriodEnd=true, canceledAt=null`); signature verification + idempotent dispatcher (200 responses); multi-row WHERE behavior con 2 cuentas coexistiendo sin interferencia.
+- **No validado con eventos reales (sí cubierto por tests integración 20/20):** `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted`, admin cancel route con sesión admin real. `stripe trigger` y `stripe invoices create` ambos limitados para forzar renewal sobre subs recién creadas — requiere Stripe test clocks. Diferido a pre-launch checklist S10/S11.
+
+Decisiones tomadas durante S6:
+
+1. **`mapStatus` override (incomplete → past_due por SCA/3DS).** El plan original mapeaba "todo lo demás" a `active`. Decisión humana: mapear `incomplete` y `paused` a `past_due` defensivamente para no dar acceso sin pago confirmado durante 3DS/SCA gate. Defensive fallback con `console.error` para telemetría de futuros enum drifts de Stripe. Test unitario cubre los 9 branches incluyendo el fallback.
+2. **Mock complexity ceiling (vi.hoisted en Test 6b).** Test 6b requirió mocking simultáneo de `@/lib/stripe` + `@/lib/auth`. Setup llegó a 10 líneas (ceiling acordado). `vi.hoisted` necesario por hoisting de vi.mock factories en Vitest; comentado en código para explicar el WHY.
+3. **Capacity semantics verificadas.** `getCapacity` en `src/lib/capacity.ts:13` filtra por `inArray(status, ['active', 'past_due'])`, no por presencia de fila. Confirma que cancelaciones liberan capacidad automáticamente al flip de status. S7 puede asumir esta semántica.
+4. **Smoke con `stripe trigger` limitado.** Eventos de lifecycle (`invoice.paid`, `payment_failed`, `subscription.deleted`) requieren Stripe test clocks para validar con payloads reales en development. `stripe trigger` envía eventos con payloads sintéticos que no corresponden a subs reales; `stripe invoices create` requiere customer existente sin pending invoice. Diferido a S11 pre-launch.
+
 ---
 
 ## Pendiente
-
-### S6 — Subscription lifecycle webhooks (Tests 6, 7) — SIGUIENTE
-
-Handlers nuevos en `src/lib/webhooks/`:
-- `handle-subscription-updated.ts` — `customer.subscription.updated` (status changes, cancel_at_period_end toggle, period updates)
-- `handle-subscription-deleted.ts` — `customer.subscription.deleted` (status=canceled, canceled_at=now)
-- `handle-invoice-paid.ts` — `invoice.paid` (renewal → status=active, sessionsRemaining=2)
-- `handle-invoice-payment-failed.ts` — `invoice.payment_failed` (status=past_due)
-
-Modifica `src/app/api/webhooks/stripe/route.ts` dispatcher para añadir los 4 nuevos event types + `customer.subscription.created` no-op.
-
-Nueva route admin-gated: `src/app/api/admin/cancel-subscription/route.ts` con `requireAdmin()` (primera vez usando el guard creado en S4).
-
-Tests del spec esperados: Test 6 (cancel flow) + Test 7 (past_due → restore).
-
-**Decisión pendiente al inicio de S6:** enum `subscription_status` — extender o mapear.
-- Stripe puede mandar: `incomplete, trialing, active, past_due, canceled, unpaid, paused`
-- DB enum actual: `active, past_due, canceled`
-- **Opción A:** extender enum (migración nueva — drizzle-kit no maneja partial-index drift, leer el SQL antes de aplicar)
-- **Opción B:** mapear todo a los 3 existentes en `mapStatus()` helper. El plan ya muestra esto en Task 6.1: `unpaid → past_due`, `incomplete_expired → canceled`, todo lo demás → active. **Recomendación: empezar con B; si test 6/7 fuerzan estados intermedios visibles al usuario, escalar a A.**
 
 ### S7 — Capacity race + duplicate guards (Tests 2, 3, 8)
 Resolver la race conocida deferida desde S3: dos webhooks concurrentes con el mismo `event.id` podrían crear 2 auth_tokens y 2 welcome emails. También: enforce capacity limit (`partial unique index` lo bloquea a nivel DB; surface al usuario como 409 + waitlist redirect). Duplicate subscription detection para usuarios re-subscribiendo después de cancelar.
@@ -146,12 +161,13 @@ Tabla `waitlist`, form en MentoriaCard cuando `capacityFull=true`. Página de pr
 
 ## Estado de DB (Neon test branch)
 
-- **1 subscriber retained para test:** `michael.devlyn.tech+s5@gmail.com`
-  - profile completo (`Michael Devlyn-v2`, `Jhon_pito-v2`, etc.)
-  - subscription `status='active'`, `sessions_remaining=2`, `cancel_at_period_end=false`
-  - `stripe_customer_id: cus_UWD3JjNBVSyom5`
-  - `profileCompletedAt: 2026-05-15T01:38:24.547Z` (invariant verificado tras edits)
-- **1 subscriber inicial residual:** `michael2506@icloud.com` (smoke S4 sin completar profile, token consumido)
+DB vacía tras `npm test` (issue documentado en backlog 6.5: `DATABASE_URL` compartido entre dev y tests). Para regenerar subscribers de smoke en futuros chats, repetir flujo de checkout vía `/mentoria`.
+
+**Smoke S6 anterior (data wipeada por test suite del cierre):**
+- `michael.devlyn.tech@gmail.com` (sub `sub_1TXFq5PwEjHy5wNA0lOllwkQ`, `cancelAtPeriodEnd=true` tras smoke S6)
+- `michael.devlyn.personal@gmail.com` (sub `sub_1TXGNbPwEjHy5wNA0Wnb0jZc`, activa limpia)
+
+Las suscripciones en Stripe siguen vivas y son cancelables manualmente desde Stripe Dashboard si se necesita limpiar antes de repetir smoke.
 
 ## Configuración externa
 
@@ -194,6 +210,7 @@ Tabla `waitlist`, form en MentoriaCard cuando `capacityFull=true`. Página de pr
 - `NODE_OPTIONS=--env-file=...` no funciona con Next.js workers (`ERR_WORKER_INVALID_EXEC_ARGV`)
 - `scripts/login_url.ts` (untracked, gitignored) genera magic link manual para dev/smoke
 - Pre-existing 9 lint errors (`tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx`) — S3-era, fuera de scope hasta Phase 6.5 polish
+- **`npm test` TRUNCATEa `subscribers`/`subscriptions`/`sessions`/`stripe_events`/`auth_tokens`** en la DB apuntada por `DATABASE_URL`. Hasta que se separe `DATABASE_URL_TEST` (bloqueante S11 — ver backlog 6.5), NO correr `npm test` después de un smoke manual si querés preservar los subscribers reales.
 
 ## Phase 6.5 backlog (acumulado de los reviews)
 
@@ -206,7 +223,7 @@ De `docs/DEVLOG.md` entry de S5:
 - **`AbortController` para fetches en client components** que redirigen via `window.location.href`. Window navigation hace impacto near-zero hoy pero es el canonical pattern.
 - **InlineEditableField re-sync.** Local `value` state nunca re-sync con `initialValue` si parent re-renders con new server data. `revalidatePath('/cuenta')` causa server-side re-fetch — verificar comportamiento observado antes de añadir `useEffect` o `key={initialValue}`.
 - **Error display en InlineEditableField.** Si `onSave` throws, user ve spinner stop sin mensaje. Solo falla path es Zod hoy (no triggerable from controlled input). Cuando action grow, añadir try/catch slot con inline error.
-- **Pre-existing test-file `any` errors (9 de S3 + N de S6, contar al cierre de Phase 6).** `tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx` — out of scope hasta Phase 6.5 polish. S6 añadió nuevas introducciones de `as any` / `event: any` en `tests/integration/subscription-lifecycle.test.ts` siguiendo el patrón establecido en `webhook-happy-path.test.ts`.
+- **Pre-existing test-file `any` errors (9 de S3 + N de S6, contar al cierre de Phase 6).** `tests/helpers/*`, `tests/integration/*`, `BookingModal.tsx` — out of scope hasta Phase 6.5 polish. S6 añadió nuevas introducciones de `as any` / `event: any` en `tests/integration/subscription-lifecycle.test.ts` y `tests/integration/admin-cancel.test.ts` (estas con `eslint-disable` comments justificando el WHY), siguiendo el patrón establecido en `webhook-happy-path.test.ts`.
 
 De otros DEVLOG entries:
 
@@ -216,3 +233,14 @@ De otros DEVLOG entries:
 - **Stripe SDK bump a v18+.** Quitar la post-Basil type assertion en `handle-checkout-completed.ts`, mover `apiVersion` al SDK's `LatestApiVersion` (probable contemporary `*.clover`). Re-test items.data[0] code path.
 - **Default for `subscriptions.sessionsRemaining`.** Sin SQL default actual; cualquier INSERT que omita el campo falla. Si futuro código path lo omite, considerar `.default(2)` en schema.
 - **`subscribers.dateOfBirth` text vs date column.** Text más permissive; LFPDPPP podría preferir DB-level validation con tipo `date`. Decisión antes de S5 dashboard edit del campo (ya pasó — text se quedó).
+
+Items S6 — smoke findings (cierre):
+
+- **[RESUELTO en S6 close-out commit]** BUG-S6-1: copy "Próximo cobro" engañoso cuando `cancelAtPeriodEnd=true`. Detectado en smoke S6, fixeado mismo día (conditional copy en `src/app/cuenta/page.tsx` — muestra "Acceso termina: {fecha}" cuando subscriber ya canceló).
+- **[RESUELTO en S6 close-out commit]** UX-S6-1: botón "Cerrar sesión" inconsistente con resto del dashboard (texto plano vs border + padding del botón Administrar pago). Detectado en smoke S6, fixeado mismo día (mismo styling de `ManageBillingButton`).
+- **[RESUELTO en S6 close-out commit]** BUG-S6-2: test-pollution en Test 6b (admin cancel). `afterEach` añadido en `tests/integration/admin-cancel.test.ts` para limpiar `subscribers`/`subscriptions` seedeados por el test, evitando residuo post-suite.
+
+Items S6 — diferidos al pre-launch checklist:
+
+- **Stripe test clocks para smoke de lifecycle completo.** Bloqueante para pre-launch checklist S11. Permite forzar advance de cycle para validar `invoice.paid`, `invoice.payment_failed`, `customer.subscription.deleted` con payloads reales — no posible con `stripe trigger` ni `stripe invoices create` sobre subs recién creadas. Configurar customer con `test_clock` attached al crear vía `/api/checkout/create` con flag dev-only.
+- **[BLOQUEANTE S11] `DATABASE_URL` único compartido entre dev local y tests integración.** `tests/integration/setup.ts` hace `TRUNCATE` sobre la misma DB que `npm run dev` usa, lo cual borra cualquier estado de smoke manual al primer `npm test`. Fix: añadir `DATABASE_URL_TEST` en env schema (opcional, fallback a `DATABASE_URL` con warning si missing). Modificar `setup.ts` para usarla. Debe diseñarse junto con la separación prod/dev branches que S11 va a configurar. Lugar: `src/lib/env.ts`, `tests/integration/setup.ts`.

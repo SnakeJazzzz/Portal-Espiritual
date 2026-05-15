@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { db } from '@/db/client';
 import { subscribers, subscriptions, products } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,6 +22,14 @@ vi.mock('@/lib/auth', async () => {
 import { POST } from '@/app/api/admin/cancel-subscription/route';
 
 describe('Test 6b — Admin cancel route', () => {
+  afterEach(async () => {
+    // Suite uses beforeEach TRUNCATE in setup.ts (clears state between tests).
+    // afterEach here ensures rows don't survive the LAST test of the suite run —
+    // otherwise the test residue pollutes manual inspection and getCapacity queries.
+    await db.delete(subscriptions).where(eq(subscriptions.stripeSubscriptionId, 'sub_admin_cancel_test'));
+    await db.delete(subscribers).where(eq(subscribers.email, 'admincancel@example.com'));
+  });
+
   it('calls stripe.subscriptions.update with cancel_at_period_end:true and returns 200', async () => {
     const product = await db.query.products.findFirst({ where: eq(products.slug, 'mentoria-1a1') });
     if (!product) throw new Error('mentoria product not seeded');
