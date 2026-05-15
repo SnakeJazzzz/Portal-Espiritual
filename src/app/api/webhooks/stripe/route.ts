@@ -6,6 +6,8 @@ import { stripeEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { handleCheckoutCompleted } from '@/lib/webhooks/handle-checkout-completed';
 import { handleSubscriptionUpdated } from '@/lib/webhooks/handle-subscription-updated';
+import { handleInvoicePaid } from '@/lib/webhooks/handle-invoice-paid';
+import { handleInvoicePaymentFailed } from '@/lib/webhooks/handle-invoice-payment-failed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,6 +37,12 @@ export async function POST(req: NextRequest) {
         break;
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(event);
+        break;
+      case 'invoice.paid':
+        await handleInvoicePaid(event);
+        break;
+      case 'invoice.payment_failed':
+        await handleInvoicePaymentFailed(event);
         break;
       default:
         break;
