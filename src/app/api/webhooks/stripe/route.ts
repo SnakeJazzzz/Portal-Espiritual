@@ -6,6 +6,7 @@ import { stripeEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { handleCheckoutCompleted } from '@/lib/webhooks/handle-checkout-completed';
 import { handleSubscriptionUpdated } from '@/lib/webhooks/handle-subscription-updated';
+import { handleSubscriptionDeleted } from '@/lib/webhooks/handle-subscription-deleted';
 import { handleInvoicePaid } from '@/lib/webhooks/handle-invoice-paid';
 import { handleInvoicePaymentFailed } from '@/lib/webhooks/handle-invoice-payment-failed';
 
@@ -43,6 +44,14 @@ export async function POST(req: NextRequest) {
         break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event);
+        break;
+      case 'customer.subscription.created':
+        // no-op per spec §13.1; subscription row is created in checkout.session.completed
+        // where we have buyer context. Recording the event below in stripe_events still
+        // marks it processed so Stripe stops retrying.
+        break;
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event);
         break;
       default:
         break;
