@@ -5,6 +5,7 @@ import { db } from '@/db/client';
 import { stripeEvents } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { handleCheckoutCompleted } from '@/lib/webhooks/handle-checkout-completed';
+import { handleSubscriptionUpdated } from '@/lib/webhooks/handle-subscription-updated';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event);
         break;
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event); break;
       default:
         break;
     }
