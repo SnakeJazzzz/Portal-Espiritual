@@ -48,7 +48,11 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   const product = await db.query.products.findFirst({ where: eq(products.slug, 'mentoria-1a1') });
   if (!product) throw new Error('mentoria product not seeded');
 
-  // 3. Atomic capacity-aware insert — see insertSubscriptionIfCapacity for outcome semantics.
+  // 3. Atomic capacity-aware insert — see insertSubscriptionIfCapacity
+  // for outcome semantics. Single-statement SQL prevents the race
+  // where two concurrent webhooks for the same stripe_subscription_id
+  // both pass a capacity check then both INSERT. The unique
+  // constraint on stripe_subscription_id serializes; only one wins.
   const result = await insertSubscriptionIfCapacity({
     subscriberId: sub_row.id,
     productId: product.id,

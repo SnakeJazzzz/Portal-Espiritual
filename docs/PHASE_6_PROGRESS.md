@@ -248,6 +248,8 @@ Items S6 — diferidos al pre-launch checklist:
 Items S7 — edge cases identificados en planning (pre-implementation):
 
 - **[BLOQUEANTE LAUNCH] BUG-S7-edge-1: subscription-existe-sin-auth_token.** Si un network blip causa fallo entre el INSERT de `subscriptions` (atómico, exitoso) y el INSERT de `auth_tokens` (no idempotente) dentro de `handleCheckoutCompleted`, la subscription queda sin magic link y sin recovery automático. Stripe retry NO recupera porque la unique constraint sobre `stripe_subscription_id` hace que el siguiente intento del helper `insertSubscriptionIfCapacity` falle silenciosamente (catch re-throwea) — el handler nunca llega de nuevo a la creación de auth_token. Resultado: user paga, tiene fila en `subscriptions`, pero no puede loguearse vía magic link. **Mitigation requerida antes de launch:** admin route "resend welcome email" que detecte subs sin `auth_tokens` row (vía LEFT JOIN) y genere uno nuevo + envíe email. Lugar: `src/app/api/admin/resend-welcome/route.ts` (no existe). Bloqueante S11.
+
+  **Variante observada en Gate C review (S7):** si el fallo ocurre DESPUÉS de `createAuthToken` (en email send o más adelante), Stripe retry ejecuta el handler de nuevo. `insertSubscriptionIfCapacity` detecta la sub existente y devuelve `duplicate_subscription`, llevando el flow al refund path para una sub que SÍ debería existir. Resultado: usuario paga, sub existe, auth_token existe, pero recibe email "duplicate subscription" + refund inesperado. El handler se autodestruye. **Implicación para la mitigación S11:** la admin "resend welcome email" route debe también detectar y permitir revertir refunds erróneos disparados por este retry-storm. Scope real del fix incluye refund reversal, no solo token regeneration.
 - **[Phase 6.5 cosmetic] tests/helpers/stripe-mock-with-state.ts: redundant Map lookup in `retrieve` method.** Could collapse `stripeState.seedSubscription(id)` + `stripeState.subscriptions.get(id)` to a single call (have `seedSubscription` return the seeded value, or use a local reference). Surfaced in S7 Gate A code review; deferred as pure cosmetic.
 
 Items S7 — Gate B code review findings (diferidos):
@@ -261,3 +263,9 @@ Items S7 — Gate B code review findings (diferidos):
 - **M4 — Test helper duplication.** `postWebhook` helper duplicado en 4 archivos test (`webhook-happy-path`, `capacity-race`, `capacity-mixed-status`, `duplicate-subscription`). Pattern de `seed-active-subscription` (insert subscriber + subscription with product lookup) duplicado en 6+ sites a lo largo de S6 + S7. Extraer a `tests/helpers/post-webhook.ts` + `tests/helpers/seed-active-subscription.ts` durante sweep de cleanup al cierre de Phase 6 (S10/S11).
 
 - **M5 — Welcome email third-person reference** [depends on: M5-duplicate-fix landed in S7 commit b23b8de]. `src/lib/email.ts:62` todavía dice `"escríbele a Juan Pablo por Instagram"`. Replicar el fix aplicado a duplicate email (`"escríbeme por Instagram"`) para consistency de voice. Defer hasta S10 pre-launch UX pass cuando JP de feedback global de copy.
+
+Items S7 — Gate C code review findings (diferidos):
+
+- **Flag B — `appendAudit` non-idempotent on Stripe retry.** Cada retry del handler appendea nuevo row al `audit_log` para el mismo `event.id`, polluting el log con duplicates. No es data corruption (audit es append-only) pero compromete integridad para auditorías LFPDPPP donde el log se cita como evidence.
+
+  **Mitigación trivial:** añadir `UNIQUE (event_id, action)` constraint en `audit_log` schema + cambiar `appendAudit` a `INSERT … ON CONFLICT DO NOTHING`. Requiere migration nueva (añadir `event_id` column también, ya que actualmente no existe). Defer al sweep de Phase 6.5 polish.
