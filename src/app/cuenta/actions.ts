@@ -18,18 +18,15 @@ const updateSchema = z.object({
 export async function updateSubscriberField(formData: FormData) {
   const { subscriber } = await requireAuth();
   const data = updateSchema.parse(Object.fromEntries(formData));
-  const colMap: Record<string, keyof typeof subscribers.$inferInsert> = {
-    name: 'name',
-    instagram_handle: 'instagramHandle',
-    phone: 'phone',
-    timezone: 'timezone',
-    notes_from_subscriber: 'notesFromSubscriber',
-  };
-  const update: Record<string, unknown> = { updatedAt: new Date() };
-  for (const [key, value] of Object.entries(data)) {
-    const col = colMap[key];
-    if (col) update[col] = value === '' ? null : value;
-  }
-  await db.update(subscribers).set(update as any).where(eq(subscribers.id, subscriber.id));
+  const update: Partial<typeof subscribers.$inferInsert> = { updatedAt: new Date() };
+  // Nullable text columns: empty string clears the field.
+  const v = (s: string) => (s === '' ? null : s);
+  if (data.name !== undefined) update.name = v(data.name);
+  if (data.instagram_handle !== undefined) update.instagramHandle = v(data.instagram_handle);
+  if (data.phone !== undefined) update.phone = v(data.phone);
+  if (data.notes_from_subscriber !== undefined) update.notesFromSubscriber = v(data.notes_from_subscriber);
+  // timezone is NOT NULL; zod min(1) guarantees a non-empty string when present.
+  if (data.timezone !== undefined) update.timezone = data.timezone;
+  await db.update(subscribers).set(update).where(eq(subscribers.id, subscriber.id));
   revalidatePath('/cuenta');
 }

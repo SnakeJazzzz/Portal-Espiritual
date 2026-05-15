@@ -6,6 +6,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import SessionsCounter from '@/components/SessionsCounter';
 import PastDueBanner from '@/components/PastDueBanner';
 import InlineEditableField from '@/components/InlineEditableField';
+import ManageBillingButton from '@/components/ManageBillingButton';
 import { updateSubscriberField } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ export default async function CuentaPage() {
     <main className="min-h-screen px-4 py-16 max-w-xl mx-auto">
       {sub.status === 'past_due' && <PastDueBanner />}
       <h1 className="text-3xl font-heading text-white">Tu cuenta</h1>
-      <SessionsCounter remaining={sub.sessionsRemaining} />
+      <SessionsCounter remaining={sub.sessionsRemaining} total={2} />
 
       <section className="mt-8">
         <h2 className="text-xl font-heading text-white mb-2">Información personal</h2>
@@ -61,11 +62,9 @@ export default async function CuentaPage() {
         <p className="text-portal-text/60 text-sm mt-3">
           Si tienes dudas, escríbele a Juan Pablo por Instagram antes de cancelar.
         </p>
-        <form action="/api/billing-portal/create" method="post" className="mt-3">
-          <button className="border border-white/40 text-white px-4 py-2 rounded">
-            Administrar pago / suscripción
-          </button>
-        </form>
+        <div className="mt-3">
+          <ManageBillingButton />
+        </div>
         <form action="/api/auth/logout" method="post" className="mt-6">
           <button className="text-portal-text/60 text-sm">Cerrar sesión</button>
         </form>
