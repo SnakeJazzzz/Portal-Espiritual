@@ -3597,7 +3597,7 @@ git commit -m "test(spec): satisfy spec tests 9 (no-leak), 10 (exceed), 11 (isol
 - Modify: `src/components/Footer.tsx` (add link to /privacidad)
 - Create: `tests/integration/waitlist.test.ts`
 
-### Task 9.1 — `waitlist` schema + migration
+### Task 9.1 — [x] `waitlist` schema + migration
 
 **Classification:** Sprint.
 
@@ -3631,7 +3631,7 @@ git add src/db/schema.ts src/db/migrations/ tests/integration/setup.ts
 git commit -m "feat(db): waitlist table"
 ```
 
-### Task 9.2 — `/privacidad` page with `PRIVACY_VERSION`
+### Task 9.2 — [x] `/privacidad` page with `PRIVACY_VERSION`
 
 **Classification:** Sprint — static content; the version constant matters for legal traceability.
 
@@ -3687,7 +3687,7 @@ git add src/app/privacidad/page.tsx
 git commit -m "feat(page): /privacidad with PRIVACY_VERSION constant (LFPDPPP)"
 ```
 
-### Task 9.3 — Waitlist server action
+### Task 9.3 — [x] Waitlist server action
 
 **Classification:** Sprint — Zod validation + insert.
 
@@ -3736,7 +3736,7 @@ git add src/app/mentoria/waitlist-actions.ts
 git commit -m "feat(waitlist): server action with LFPDPPP consent + privacy version"
 ```
 
-### Task 9.4 — `WaitlistModal` component
+### Task 9.4 — [x] `WaitlistModal` component
 
 **Classification:** Sprint.
 
@@ -3800,7 +3800,7 @@ git add src/components/WaitlistModal.tsx
 git commit -m "feat(ui): WaitlistModal with consent checkbox"
 ```
 
-### Task 9.5 — Wire modal into `/mentoria` page
+### Task 9.5 — [x] Wire modal into `/mentoria` page
 
 **Classification:** Sprint.
 
@@ -3833,7 +3833,7 @@ git add src/components/MentoriaCardWithWaitlist.tsx src/app/mentoria/page.tsx
 git commit -m "feat(mentoria): wire WaitlistModal into the page"
 ```
 
-### Task 9.6 — Add Mentoría section to home page (additive only)
+### Task 9.6 — [x] Add Mentoría section to home page (additive only)
 
 **Classification:** Gate — touches existing pages; visual review required to confirm nothing existing breaks.
 
@@ -3891,7 +3891,7 @@ git add src/app/page.tsx src/components/MentoriaHomeSection.tsx
 git commit -m "feat(home): add Mentoría section below existing grid (additive)"
 ```
 
-### Task 9.7 — Add `/privacidad` link to Footer
+### Task 9.7 — [x] Add `/privacidad` link to Footer
 
 **Classification:** Sprint.
 
@@ -3904,7 +3904,7 @@ git add src/components/Footer.tsx
 git commit -m "feat(footer): link to /privacidad"
 ```
 
-### Task 9.8 — Waitlist integration test
+### Task 9.8 — [x] Waitlist integration test
 
 **Classification:** Sprint — narrow contract.
 

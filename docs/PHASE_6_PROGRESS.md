@@ -1,8 +1,8 @@
 # Phase 6 — Progreso de Ejecución
 
-**Última actualización:** 2026-05-15
+**Última actualización:** 2026-05-16
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `chore(s8): close-out — login magic link + rate limit` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `chore(s9): close-out — waitlist + /privacidad + home integration` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -205,12 +205,52 @@ Decisiones tomadas durante S8:
 4. **429 explícito vs always-200 (D4).** 429 con body `'rate limited'` permite a clients legítimos distinguir abuse de error de aplicación. Si threat model post-launch identifica adversary capable of timing attacks at scale, revisitar always-200 pattern (item nuevo en backlog 6.5).
 5. **Criterion 5 (timingSafeEqual) por inspección de código, no test (D5).** `src/lib/auth-tokens.ts:32-49` mantiene WHY comment de 4 líneas + `crypto.timingSafeEqual(expectedBuf, actualBuf)` en línea 49 — verificado visualmente al cierre de S8. NO se añadió test directo. Spy-based test rechazado como impl-coupled (se rompe ante cualquier refactor legítimo); statistical test rechazado por flake. Code review humano del path es el guard.
 
+### S9 — Waitlist + `/privacidad` + home integration ✅
+
+Tabla `waitlist` append-only para LFPDPPP consent evidence (sin UNIQUE constraint por diseño). Página `/privacidad` con `PRIVACY_VERSION = '2026-05-13'` exportada como constante. WaitlistModal client component (`useActionState` + `useFormStatus`) que captura email + consent + privacy version. Wrapper `MentoriaCardWithWaitlist` para server→client bridging (server components no pueden pasar funciones a client components). Mentoría section añadida al home page entre Hero y AboutMe (additive, sin regresión). Link a /privacidad en Footer. 2 tests integración para `submitWaitlist` (consent required + privacy version captured).
+
+Commits S9 (Gates A-D, 10 commits + close-out + 1 commit del user con standing rules durables):
+- `bf8183c` feat(db): waitlist table — Gate A part 1
+- `6140459` feat(page): /privacidad with PRIVACY_VERSION constant (LFPDPPP) — Gate A part 2 (borrador, pendiente revisión legal JP)
+- `cec4948` docs(claude): codify S8 lessons + scratch script convention as project standing rules — commit del user post-Gate-A, codifica 3 lessons learned de S8 + nueva regla sobre scratch scripts en `scripts/` (no `/tmp/`)
+- `8b8f65a` feat(waitlist): server action with LFPDPPP consent + privacy version — Gate B part 1 (revalidatePath removido por análisis empírico)
+- `5b744a2` test(waitlist): consent required + privacy version captured — Gate B part 2
+- `120084e` feat(ui): WaitlistModal with consent checkbox — Gate C part 1 (bg-portal-bg → bg-portal-black, plan typo sustituido)
+- `a7af02b` feat(mentoria): wire WaitlistModal into the page — Gate C part 2
+- `7537c83` fix(modal): migrate useFormState → useActionState (React 19.2 / Next 16 compat) — Gate D part 1 (fix bundled + rel="noopener noreferrer" piggyback, ver decisiones 5+6)
+- `a8e2160` feat(home): add Mentoría section below existing grid (additive) — Gate D part 2
+- `3ed3c8d` feat(footer): link to /privacidad — Gate D part 3
+
+S9 close-out:
+- `[S9 close-out]` chore(s9): close-out — waitlist + /privacidad + home integration (hash buscarlo en `git log --grep="S9 close-out"`)
+
+Tests: **31/31 PASS** (2 nuevos en S9: Test waitlist consent required + Test waitlist privacy version captured). Subimos de 29/29 (S8 close-out) → 31/31.
+
+Smoke manual S9: **Validado end-to-end por user en mobile viewport 375px.**
+
+- **Capacity-full path:** seed manual de 8 active subscriptions vía `scripts/scratch-seed-capacity-full.ts` → `/` y `/mentoria` muestran "Cupo lleno - únete a la lista de espera" → click CTA abre modal con form → submit sin consent intercepta HTML5 required (tooltip nativo "Please check this box") sin llegar al server action → submit con consent muestra "Listo. Te aviso cuando se abra un cupo." → row insertada en `waitlist` con `PRIVACY_VERSION` capturado. bg-portal-black aplicando correctamente, fondo sólido sin StarField filtrándose, sin overflow en mobile.
+- **Capacity-not-full path:** cancel 1 sub (de 8 a 7) → `/` muestra "Suscribirse" en lugar de CTA waitlist → checkout real con Stripe test card → email welcome → magic link → `/cuenta/perfil` → form submit → `/cuenta` dashboard → Customer Portal funcional → logout funcional → capacity vuelve a 8 (nuevo subscriber) → CTA vuelve a "Cupo lleno". Consistencia validada.
+- **Regression check inadvertido (out-of-scope para S9, validado de paso):** `/api/checkout/create`, webhook idempotent (~15 events sin duplicate rows), `/api/auth/verify`, `/cuenta/perfil` + field gate, `/cuenta` dashboard render, `/api/billing-portal/create` con return URL, `/api/auth/logout` — todo funcional.
+
+Defecto detectado pero out-of-scope S9 (registrado en backlog 6.5 como BLOQUEANTE-LAUNCH): **"Orphaned authenticated flow"** — `/` no tiene entry point visible para subscribers existentes que quieran re-loguearse después de logout. `/login` existe pero URL hidden. Gap heredado de S4, **expuesto en S9 smoke** cuando el user clickeó Logout desde /cuenta. Categoría "UX gap invisible hasta smoke end-to-end" — el gap existe desde S4 pero NO se materializó como dolor real hasta S9 porque en S4-S8 nadie hacía logout. S9 es el slice que EXPONE el bug, no el que lo CREA. Distinción importa para retro: gaps de UX que viven sin manifestarse durante varios slices son la categoría más insidiosa — tsc no los caza, tests no los cazan, la única defensa es smoke completo end-to-end.
+
+Decisiones tomadas durante S9:
+
+1. **Email dedup en waitlist: sin UNIQUE constraint (Opción A).** Row del waitlist es evidencia legal append-only bajo LFPDPPP. ON CONFLICT DO UPDATE destruiría el primer `consent_privacy_at`, que es exactamente el timestamp que el `PRIVACY_VERSION` está diseñado para preservar. Duplicados los dedupea JP visualmente en /admin al notificar — no es bug, es audit log.
+2. **PRIVACY_VERSION ubicación: export desde page file (spec-literal).** Plan mandata `import { PRIVACY_VERSION } from '@/app/privacidad/page';`. Verificado empíricamente que Next 16 compila named exports desde page files (tsc clean). NO extracted a `src/lib/` ni `src/config/` para mantener fidelidad al spec. Si emerge 3er consumer en S10/Phase 7, extraer entonces (anchor existente en pre-launch checklist S11: "LFPDPPP /privacidad reviewed by JP").
+3. **9.6 path: componente separado `MentoriaHomeSection`** (vs inline async en `page.tsx`). `Home()` es sync — mantenerlo sync por review surface más limpio. Plan ofrecía este fallback explícitamente.
+4. **`bg-portal-bg` → `bg-portal-black` en WaitlistModal.** Plan literal usaba class no-existente en theme (Tailwind v4 silently no-op'ea). Verificación empírica del theme pre-implementación con full read de `globals.css`; sustitución documentada en commit body de `120084e`. Drift del plan, no amendment de diseño.
+5. **`useFormState` → `useActionState` (fix bundled en Gate D commit `7537c83`).** Runtime error detectado en smoke visual de Gate D: `useFormState` removido del runtime de `react-dom` en Next 16 / React 19.2 aunque permanecía en types. tsc clean + npm test 31/31 NO lo cazaron porque la action funciona aislada y los tests no montan el modal en DOM real. Fix con signature idéntica (`useActionState` desde `react`, `useFormStatus` permanece en `react-dom`).
+6. **`rel="noopener noreferrer"` piggyback** en el link `target="_blank"` del modal hacia /privacidad. Defense-in-depth contra corporate environments con extensions que sobreescriben el noopener implícito de browsers modernos (Chrome 88+, Firefox 79+, Safari 12.1+). Costo 1 atributo. Mismo patrón que el link de Instagram en Footer.
+7. **`revalidatePath` removido del action (deviation del plan).** `/mentoria/page.tsx` solo lee `getCapacity` (subscription count), no waitlist data. Insert al waitlist NO cambia ningún dato observable en `/mentoria` → `revalidatePath('/mentoria')` era no-op semantic y false coupling signal. Lectura empírica de la page antes de decidir.
+
+Caveats heredados que persisten:
+- **DATABASE_URL único compartido** (backlog 6.5 bloqueante-S11): se manifestó nuevamente en S9 Gate D — re-seed mid-smoke necesario después del primer `npm test` post-fix. Refuerza prioridad del fix.
+- **Stripe Dashboard desync DB↔Stripe** (efecto del mismo issue): la subscription real creada durante el smoke de S9 sobrevive en Stripe test mode pero la DB fue wipeada por `npm test`. Decisión del user al close-out: dejar la sub viva como anchor reproducible para S10 admin smoke + S11 pre-launch verifications. Stripe test mode no cobra dinero real. Rehidratación en S10 via webhook resend desde Stripe Dashboard.
+
 ---
 
 ## Pendiente
-
-### S9 — Waitlist + /privacidad + home integration
-Tabla `waitlist`, form en MentoriaCard cuando `capacityFull=true`. Página de privacidad (LFPDPPP). Integración del MentoriaCard en homepage debajo de la grid 2x2 existente (additive).
 
 ### S10 — Admin panel + seed admin + pre-launch checklist
 `/admin` rutas con `requireAdmin`. Seed inicial del admin via `ADMIN_SEED_EMAIL`. Pre-launch checklist (S11 gate).
@@ -260,6 +300,9 @@ Las suscripciones en Stripe siguen vivas y son cancelables manualmente desde Str
 12. **`tsc --noEmit` como standing rule de cierre de gate** (lección S8 Gate A V6 sanity check). El check reveló un TS error pre-existente en `tests/integration/auth-verify.test.ts:62` (DOM RequestInit vs NextRequest internal RequestInit, signal `null` no asignable) que había viajado intacto desde S4 (`7fa7780`) porque ningún gate previo corría tsc como contract de close-out. `npm run build` no lo captura porque `next build` no incluye `tests/`; vitest tampoco hace strict TS check. A partir de S8, `npx tsc --noEmit` con exit 0 es contract obligatorio al cierre de cada gate.
 13. **Empirical-first extendido a CUALQUIER afirmación técnica** (lección S8 Gate B amend). La afirmación inicial "operator `inet = text` no existe en postgres → cast `::inet` necesario" era cierta solo para queries con literales sin parametrizar. Scratch script de 3 tests verificó empíricamente que con wire-protocol parametrization (Drizzle + pg/Neon) el cast NO es necesario. Amend del commit `38bba50 → 1b09da7` corrigió impl + body. La regla de `~/.claude/CLAUDE.md` developer global sobre `as any` ahora aplica también a SQL casts, library workarounds, y cualquier "X es necesario porque Y" que se pueda verificar en <5 min con un scratch script ad-hoc.
 14. **Heredoc + caracteres especiales → siempre `git commit -F file`** (lección S8 Gate B re-amend). El primer amend del Gate B usó `git commit --amend -m "$(cat <<'EOF' ... EOF)"` con backslash-escapes defensivos en backticks (`\`value\``) que terminaron persistiendo literalmente en el commit body porque heredoc quoted preserva backslashes. Re-amend con `git commit --amend -F /tmp/msg.txt` arregló el escape. A partir de Gate B, commit bodies con caracteres especiales (backticks, `$`, etc.) se escriben siempre via Write + `-F`, nunca heredoc.
+15. **Smoke completo end-to-end vs smoke estrecho-del-scope** (lección S9 Gate D). Patrón observado: smoke estrecho de Gate D ("solo capacity-full + capacity-not-full") no habría cazado el `orphaned auth flow` ni el `useFormState` runtime error. Smoke end-to-end completo de Phase 6 que el user ejecutó (checkout → email → /cuenta → portal → logout) reveló 3 cosas: bug del useFormState, defensa HTML5+Zod válida, gap de re-login. A partir de S10, todo gate que toque UI debe tener smoke end-to-end completo (5-10 min de fricción extra, evita debt de descubrimiento tardío). Promover a `~/.claude/CLAUDE.md` global en post-mortem de Phase 6.
+16. **Empirical-first es BIDIRECCIONAL** (lección S9 Gate D). La regla actual (CLAUDE.md global codificada post-Gate-B S8) cubre "verificá antes de afirmar X es necesario". Igualmente aplicable a "verificá antes de afirmar Y aún funciona". Caso S9: `useFormState` reportado en mi pre-check de Gate A como "aún exportado" basado en `@types/react-dom` (correcto en types) pero removido del runtime de `react-dom` en Next 16 / React 19.2. Types ≠ runtime, especialmente en transition periods de mayor versions framework. Pre-checks de compat de hooks/APIs renamed/deprecated deben incluir runtime mount (booting dev + render real) cuando posible, no solo grep en `.d.ts`. Promover a `~/.claude/CLAUDE.md` global en post-mortem de Phase 6.
+17. **Plan v2 vs codebase reality drift** (lección S9 Gates C+D). Patrón observado en 2 sites de S9: `bg-portal-bg` (class inexistente en theme, Gate C catch pre-implementación) y `useFormState` (API removed runtime, Gate D catch post-implementación durante smoke). Ambos eran "empirically verifiable" pero requerían contextos distintos: (1) verificable pre-implementación con grep contra theme/exports, (2) verificable solo post-implementación con smoke visual. Para Phase 7+: antes de codificar literal de un snippet del plan, grep + view de dependencies/classes/imports/hooks mencionadas en el snippet. Si el snippet usa un hook/API/class del codebase, verificar runtime behavior antes de close-out de gate. Promover a `~/.claude/CLAUDE.md` global en post-mortem de Phase 6.
 
 ## Caveats de setup local (de `docs/DEVLOG.md`)
 
@@ -356,3 +399,19 @@ Items S8 — Gate D / E findings (diferidos):
 - **APP_URL validation en magic link URL del email.** WHY: Test 9.real verifica que se envía exactamente 1 email pero NO valida el contents del URL pasado a Resend. Si `APP_URL` env var queda mal configurado (e.g., trailing slash, scheme omitido, IP literal en prod, env no cargado correctamente en serverless), el magic link es no-funcional para subscribers reales pero el test pasa silenciosamente. Scope: assertion adicional en test 9.real que extraiga el URL del último sent email y verifique esquema HTTPS + hostname válido + path `/api/auth/verify` + query `token` no vacío. Requeriría que el mock `resend-mock.ts` persista el `magicLinkUrl` o el `html` real en `sentEmails` para que el test pueda extraerlo (cambio breaking del shape del mock — coordinar con M4 abajo). Trigger: si JP reporta magic-link broken post-launch con causa env, o pre-launch checklist S11. Lugar: `tests/integration/auth-login.test.ts` (assertion) + `tests/helpers/resend-mock.ts` (shape).
 
 - **Subject duplication entre `email.ts` y `resend-mock.ts`.** WHY: cada template tiene su subject literal duplicado en ambos archivos (e.g. `'Tu enlace de acceso a Portal Espiritual'`, `'Tu acceso a Portal Espiritual — Mentoría 1-a-1'`, `'Ya tienes una suscripción activa'`, etc.). Si alguien cambia el subject en `email.ts` y olvida actualizar el mirror, el mock divergerá silenciosamente y los tests podrían pasar con copy desactualizada. Identificado durante review de Gate C de S8. Scope: extraer subjects a constantes exportadas desde `email.ts` (o un módulo nuevo `email-subjects.ts`), importarlas en ambos archivos para que el compilador cace divergencia. Trigger: próximo cambio de copy en cualquier template (S10 pre-launch UX pass es candidato natural), o si se hace el fix de APP_URL validation que ya requiere tocar `resend-mock.ts`. Lugar: `src/lib/email.ts` + `tests/helpers/resend-mock.ts`.
+
+Items S9 — Gate D smoke findings + decisiones diferidas:
+
+BLOQUEANTE-LAUNCH (alta prioridad para S11):
+
+- **Orphaned authenticated flow.** WHY: `/` no tiene entry point visible para login de subscribers existentes después de logout. `/login` existe pero la URL es hidden (no link en navbar, footer, ni en ningún CTA público). Magic links viejos ya consumidos al primer uso (single-use por diseño). Gap heredado de S4 pero **expuesto en S9 smoke** cuando el user clickeó Logout desde /cuenta y descubrió que no había forma obvia de volver a entrar sin pedir un nuevo magic link (que requiere conocer la URL /login). Categoría "UX gap invisible hasta smoke end-to-end": tsc no lo caza, tests no lo cazan — solo smoke completo end-to-end revela el problema. Scope: añadir link visible "Iniciar sesión" en navbar/footer (o ambos), idealmente con form de email-only que dispare el magic link. Trigger: BLOQUEANTE LAUNCH (S11 pre-launch checklist), pero asignable a S10 también porque admin (JP es first user) necesita login link visible para entrar a /admin. Lugar: `src/components/Footer.tsx` + posiblemente `src/components/Hero.tsx` o un nuevo navbar component.
+
+NO BLOQUEANTE (polish / lessons):
+
+- **JP debe revisar texto del aviso de privacidad antes del live launch.** WHY: PRIVACY_VERSION = '2026-05-13' se hardcodeó como borrador con copy del plan. Antes del live launch, JP (y idealmente un abogado) deben revisar el texto completo en `src/app/privacidad/page.tsx` para cumplimiento LFPDPPP real (no solo formal). Anchor existente en spec §793 / pre-launch checklist S11: "LFPDPPP /privacidad reviewed by JP". Si JP cambia copy en review, bumpear PRIVACY_VERSION a la fecha del review (las versiones anteriores quedan como timestamps históricos en filas de waitlist ya capturadas — no destruir). Trigger: S11 pre-launch checklist. Lugar: `src/app/privacidad/page.tsx`.
+
+- **revalidatePath check pattern (retroactivo y prospectivo).** WHY: en S9 Task 9.3 se removió `revalidatePath('/mentoria')` del action porque la página solo lee `getCapacity`, no consume waitlist data. Patrón a aplicar retroactivamente: en futuras actions de S10+, verificar empíricamente qué data consume la página antes de añadir revalidatePath. False coupling signals son ruido permanente en código y mislead a futuros readers. Scope: review de actions existentes en `src/app/cuenta/actions.ts` + `src/app/admin/*` (cuando S10 las cree) — asegurar que cada `revalidatePath` corresponde a una page que realmente consume el data mutated. Trigger: cualquier touch a actions existentes en S10+. Lugar: cualquier `'use server'` file con `revalidatePath`.
+
+- **WaitlistActionResult type extraction.** WHY: actualmente el return type del action `submitWaitlist` es inline (`Promise<{ ok: boolean; error: string | null }>`). `useActionState` infiere desde la signature, modal e action coinciden via inference. Si emerge 3er consumer en S10 (e.g. admin route que llame `submitWaitlist` programáticamente) o Phase 7, extraer a `WaitlistActionResult` exportado desde `waitlist-actions.ts`. Trigger: 3er consumer del result type. Lugar: `src/app/mentoria/waitlist-actions.ts`.
+
+- **`useActionState` como pattern canonical desde S9.** WHY: tras el fix de Gate D (`7537c83`), todos los hooks de form state en este proyecto usan `useActionState` desde `react` + `useFormStatus` desde `react-dom`. NUNCA `useFormState` (deprecated en types, removido del runtime de `react-dom` en Next 16 / React 19.2). Pattern a aplicar prospectivamente en cualquier form S10+. Scope: si S10 introduce admin forms (ej. cancel sub form, resend welcome form), usar useActionState. Trigger: cualquier nuevo form server-action en S10+. Lugar: futuras forms en `src/components/admin/*` o `src/app/admin/**`.
