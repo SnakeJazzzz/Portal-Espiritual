@@ -52,6 +52,24 @@ export async function sendDuplicateSubscriptionEmail({ to, idempotencyHeader }: 
   });
 }
 
+interface LoginLinkEmailParams {
+  to: string;
+  magicLinkUrl: string;
+}
+
+// User-initiated; rate limit (5/min/IP) is the guard. No idempotencyHeader:
+// each request generates a fresh raw token → fresh URL → genuinely distinct
+// email; deduping by Resend idempotency key would suppress legitimate sends.
+export async function sendLoginLinkEmail({ to, magicLinkUrl }: LoginLinkEmailParams) {
+  return resend.emails.send({
+    from: env.RESEND_FROM_EMAIL,
+    to,
+    subject: 'Tu enlace de acceso a Portal Espiritual',
+    html: loginLinkHtml(magicLinkUrl),
+    text: loginLinkText(magicLinkUrl),
+  });
+}
+
 function welcomeHtml(url: string): string {
   return `
 <!doctype html><html lang="es"><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
@@ -120,4 +138,26 @@ Si crees que esto es un error, escríbeme por Instagram.
 
 Con amor,
 JP.`;
+}
+
+function loginLinkHtml(url: string): string {
+  return `
+<!doctype html><html lang="es"><body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
+<h1 style="font-size: 24px;">Tu enlace de acceso</h1>
+<p style="font-size: 16px; line-height: 1.5;">Abre este enlace para entrar a tu panel:</p>
+<p style="margin: 24px 0;"><a href="${url}" style="background: #1a1a1a; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">Entrar</a></p>
+<p style="font-size: 14px; color: #666;">Este enlace es válido por 15 minutos y solo puede usarse una vez.</p>
+<p style="font-size: 14px; color: #666;">Si tú no pediste este enlace, ignora este correo.</p>
+</body></html>`;
+}
+
+function loginLinkText(url: string): string {
+  return `Tu enlace de acceso a Portal Espiritual.
+
+Abre este enlace para entrar a tu panel:
+${url}
+
+Válido por 15 minutos, solo se puede usar una vez.
+
+Si tú no pediste este enlace, ignora este correo.`;
 }

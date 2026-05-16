@@ -5,6 +5,7 @@ export const sentEmails: SentEmail[] = [];
 
 interface WelcomeParams { to: string; magicLinkUrl: string; idempotencyHeader: string; }
 interface TransactionalParams { to: string; idempotencyHeader: string; }
+interface LoginLinkParams { to: string; magicLinkUrl: string; }
 
 vi.mock('@/lib/email', async (importOriginal) => {
   const orig = await importOriginal<typeof import('@/lib/email')>();
@@ -37,6 +38,16 @@ vi.mock('@/lib/email', async (importOriginal) => {
         html: 'mocked',
         text: 'mocked',
         headers: { 'X-Idempotency-Key': params.idempotencyHeader },
+      });
+      return { data: { id: `re_mock_${Date.now()}` }, error: null };
+    }),
+    sendLoginLinkEmail: vi.fn(async (params: LoginLinkParams) => {
+      sentEmails.push({
+        to: params.to,
+        subject: 'Tu enlace de acceso a Portal Espiritual',
+        html: 'mocked',
+        text: 'mocked',
+        headers: {},
       });
       return { data: { id: `re_mock_${Date.now()}` }, error: null };
     }),
