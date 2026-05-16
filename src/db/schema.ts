@@ -104,3 +104,18 @@ export const rateLimitAttempts = pgTable('rate_limit_attempts', {
   endpointIpAttemptedIdx: index('rate_limit_endpoint_ip_attempted')
     .on(table.endpoint, table.ip, table.attemptedAt.desc()),
 }));
+
+// No UNIQUE on (email, product_id): waitlist rows are append-only LFPDPPP
+// consent evidence. ON CONFLICT DO UPDATE would destroy the first
+// consent_privacy_at, which is exactly the timestamp the version constant
+// is designed to preserve. Duplicates dedupe visually in /admin at
+// notification time.
+export const waitlist = pgTable('waitlist', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  productId: uuid('product_id').notNull().references(() => products.id),
+  consentPrivacyAt: timestamp('consent_privacy_at', { withTimezone: true }).notNull(),
+  consentPrivacyVersion: text('consent_privacy_version').notNull(),
+  notifiedAt: timestamp('notified_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
