@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, integer, jsonb, timestamp, pgEnum, boolean, customType,
+  pgTable, uuid, text, integer, jsonb, timestamp, pgEnum, boolean, customType, inet, index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -94,3 +94,13 @@ export const auditLog = pgTable('audit_log', {
   after: jsonb('after'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const rateLimitAttempts = pgTable('rate_limit_attempts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  endpoint: text('endpoint').notNull(),
+  ip: inet('ip').notNull(),
+  attemptedAt: timestamp('attempted_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  endpointIpAttemptedIdx: index('rate_limit_endpoint_ip_attempted')
+    .on(table.endpoint, table.ip, table.attemptedAt.desc()),
+}));

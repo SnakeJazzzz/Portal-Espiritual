@@ -3,7 +3,7 @@ import { db } from '@/db/client';
 import { products } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
-const TABLES_TO_WIPE: string[] = ['audit_log', 'sessions', 'stripe_events', 'auth_tokens', 'subscriptions', 'subscribers'];
+const TABLES_TO_WIPE: string[] = ['audit_log', 'sessions', 'stripe_events', 'auth_tokens', 'subscriptions', 'subscribers', 'rate_limit_attempts'];
 
 beforeAll(async () => {
   const rows = await db.select().from(products).where(eq(products.slug, 'mentoria-1a1'));
