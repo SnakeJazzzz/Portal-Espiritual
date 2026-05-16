@@ -1,5 +1,5 @@
 import StarField from '@/components/StarField';
-import MentoriaCard from '@/components/MentoriaCard';
+import MentoriaCardWithWaitlist from '@/components/MentoriaCardWithWaitlist';
 import { mentoriaConfig } from '@/config/mentoria';
 import { getCapacity, isFull } from '@/lib/capacity';
 
@@ -23,8 +23,7 @@ export default async function MentoriaPage({
             Tu suscripción quedó pendiente. Dale otra vez al botón cuando estés listo.
           </p>
         )}
-        {/* TODO(S9): wire to WaitlistModal via a client wrapper (server→client cannot pass functions) */}
-        <MentoriaCard capacityFull={isFull(cap)} />
+        <MentoriaCardWithWaitlist capacityFull={isFull(cap)} />
       </main>
     </div>
   );
