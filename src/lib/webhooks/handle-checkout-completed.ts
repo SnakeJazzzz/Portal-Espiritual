@@ -36,10 +36,48 @@ export async function handleCheckoutCompleted(event: Stripe.Event) {
   const currentPeriodStart = new Date(item.current_period_start * 1000);
   const currentPeriodEnd = new Date(item.current_period_end * 1000);
 
-  // 1. Upsert subscriber by email (idempotent: email is unique)
-  await db.insert(subscribers).values({ email, stripeCustomerId }).onConflictDoUpdate({
-    target: subscribers.email,
-    set: { stripeCustomerId, updatedAt: new Date() },
+  // 1. Upsert subscriber by email. CRITICAL: preserve any existing
+  // stripeCustomerId — never overwrite. A second checkout that reuses an
+  // existing email (anonymous flow without a session, or a future
+  // re-subscription path) must not redirect the legitimate subscriber's
+  // Stripe customer to a different Stripe account. Mismatch is logged for
+  // telemetry; the upsert still completes so the subscription insert can
+  // proceed (the mismatch is operational, not a hard error).
+  //
+  // The SELECT + UPDATE/INSERT pair is wrapped in db.transaction to
+  // serialize on the subscriber row across concurrent webhooks for the
+  // same email. External calls (Stripe API, Resend) stay outside the tx
+  // per spec §13.2.
+  await db.transaction(async (tx) => {
+    const existing = await tx.query.subscribers.findFirst({
+      where: eq(subscribers.email, email),
+    });
+    if (existing) {
+      if (existing.stripeCustomerId && existing.stripeCustomerId !== stripeCustomerId) {
+        console.warn(
+          '[handle-checkout-completed] mismatched stripeCustomerId on upsert, keeping existing',
+          {
+            eventId: event.id,
+            email: existing.email,
+            existingStripeCustomerId: existing.stripeCustomerId,
+            incomingStripeCustomerId: session.customer,
+            incomingSubscriptionId: session.subscription,
+          },
+        );
+      }
+      // Single UPDATE handles all 3 sub-cases atomically:
+      //   - existing has cus + matches incoming      → no-op on cus, bump updatedAt
+      //   - existing has cus + differs from incoming → preserve existing (via ??), bump updatedAt
+      //   - existing has NO cus (edge backfill)      → fill from incoming, bump updatedAt
+      await tx.update(subscribers)
+        .set({
+          stripeCustomerId: existing.stripeCustomerId ?? stripeCustomerId,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscribers.id, existing.id));
+    } else {
+      await tx.insert(subscribers).values({ email, stripeCustomerId });
+    }
   });
   const sub_row = await db.query.subscribers.findFirst({ where: eq(subscribers.email, email) });
   if (!sub_row) throw new Error('subscriber upsert disappeared');

@@ -307,3 +307,13 @@ Items S7 — Gate C code review findings (diferidos):
 Items S7 — Gate E final review findings (diferidos):
 
 - **M-3 — `audit_log` writes uncovered by integration tests.** Tests 2/3/8 verifican los 3 observables principales (refund external state, email subject, DB capacity) pero NO querean `audit_log`. Si `appendAudit` silenciosamente fallara, el suite seguiría GREEN. Hoy aceptable porque `appendAudit` es 1 INSERT simple sin lógica condicional. **Upgrade trigger:** si Phase 7 (cursos) o Phase 8 (meditaciones) reusan `audit_log` para más event types, añadir coverage cross-cutting con assertions en `target_subscriber_id`.
+
+Items S7 — smoke findings (post-close-out):
+
+- **Customer reuse anonymous flow.** `POST /api/checkout/create` solo pasa `customer` a Stripe si hay sesión activa. Si subscriber existe por email pero no tiene sesión (logged out + re-checkout), Stripe crea customer nuevo. Resultado: múltiples Stripe customers con misma email, datos huérfanos en Stripe Dashboard.
+
+  **Mitigación:** en `route.ts` ANTES de `stripe.checkout.sessions.create`, hacer lookup por email en `subscribers` table. Si existe + tiene `stripeCustomerId`, pasarlo aunque user sea anonymous.
+
+  **Trade-off de seguridad a discutir:** ¿qué pasa si dos personas distintas usan misma email accidentalmente? El customer del primer subscriber se "asocia" a la sesión del segundo. Esto requiere diseño cuidadoso, no fix mecánico. Defer a S11 pre-launch security pass.
+
+  **Related fix landed:** the security-latent bug where `handle-checkout-completed.ts` overwrote `stripeCustomerId` on every webhook (allowing a malicious or mistaken second checkout to redirect a legitimate subscriber's Stripe customer to a different account) was fixed in the S7 post-close-out commit. The handler now preserves existing `stripeCustomerId` on upsert + logs `console.warn` on mismatch. This 6.5 item is the COMPLEMENTARY fix on the checkout-creation side (passing the existing customer to Stripe so the mismatch never happens in the first place for known subscribers).
