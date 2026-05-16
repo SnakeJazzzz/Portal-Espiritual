@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { submitWaitlist } from '@/app/mentoria/waitlist-actions';
 
 const initialState = { ok: false, error: null as string | null };
@@ -19,7 +20,7 @@ function SubmitButton() {
 }
 
 export default function WaitlistModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [state, formAction] = useFormState(submitWaitlist, initialState);
+  const [state, formAction] = useActionState(submitWaitlist, initialState);
   if (!open) return null;
   return (
     <div
@@ -48,7 +49,7 @@ export default function WaitlistModal({ open, onClose }: { open: boolean; onClos
               <input name="consent" type="checkbox" required className="mt-1" />
               <span>
                 Acepto el{' '}
-                <a href="/privacidad" target="_blank" className="underline">
+                <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="underline">
                   aviso de privacidad
                 </a>
                 .
