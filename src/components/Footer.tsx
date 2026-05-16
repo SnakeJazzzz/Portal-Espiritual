@@ -26,7 +26,10 @@ export default function Footer() {
 
       {/* Copyright */}
       <p className="text-xs text-white/25 mt-6">
-        © {new Date().getFullYear()} Portal Espiritual. Todos los derechos reservados.
+        © {new Date().getFullYear()} Portal Espiritual. Todos los derechos reservados. ·{' '}
+        <a href="/privacidad" className="hover:text-white/60 transition-colors">
+          Aviso de privacidad
+        </a>
       </p>
     </footer>
   );
