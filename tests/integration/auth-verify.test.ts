@@ -59,7 +59,7 @@ async function makeSubscriber(email: string) {
   const [row] = await db.insert(subscribers).values({ email }).returning();
   return row;
 }
-function makeReq(url: string, init?: RequestInit) { return new NextRequest(url, init) as any; }
+function makeReq(url: string, init?: ConstructorParameters<typeof NextRequest>[1]) { return new NextRequest(url, init) as any; }
 
 describe('Test 5 — Magic-link verify is single-use', () => {
   it('first verify succeeds, second verify returns 401', async () => {
