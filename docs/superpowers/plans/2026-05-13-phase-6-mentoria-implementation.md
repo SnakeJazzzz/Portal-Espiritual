@@ -3303,7 +3303,7 @@ git commit -m "test(spec): satisfy spec tests 2 (race), 3 (mixed), 8 (duplicate)
 - Create: `src/app/api/auth/login/route.ts`
 - Create: `tests/integration/auth-login.test.ts`
 
-### Task 8.1 — `rate_limit_attempts` schema + migration
+### Task 8.1 — [x] `rate_limit_attempts` schema + migration
 
 **Classification:** Sprint — small table, loud failure.
 
@@ -3348,7 +3348,7 @@ git add src/db/schema.ts src/db/migrations/ tests/integration/setup.ts
 git commit -m "feat(db): rate_limit_attempts table + index"
 ```
 
-### Task 8.2 — `src/lib/rate-limit.ts`
+### Task 8.2 — [x] `src/lib/rate-limit.ts`
 
 **Classification:** Gate — security primitive. Test 11 specifically guards against the global-counter bug.
 
@@ -3389,7 +3389,7 @@ git add src/lib/rate-limit.ts
 git commit -m "feat(rate-limit): DB-backed per-IP rate limit"
 ```
 
-### Task 8.3 — Login email template
+### Task 8.3 — [x] Login email template
 
 **Classification:** Sprint — copy.
 
@@ -3428,7 +3428,7 @@ git add src/lib/email.ts tests/helpers/resend-mock.ts
 git commit -m "feat(email): login-link template"
 ```
 
-### Task 8.4 — `POST /api/auth/login`
+### Task 8.4 — [x] `POST /api/auth/login`
 
 **Classification:** Gate — rate limit + no-leak both happen here.
 
@@ -3501,7 +3501,7 @@ git add src/app/api/auth/login/route.ts
 git commit -m "feat(auth): POST /api/auth/login with rate limit + no-leak + flat timing"
 ```
 
-### Task 8.5 — Integration tests: 9.no-leak/timing, 10, 11
+### Task 8.5 — [x] Integration tests: 9.no-leak/timing, 10, 11
 
 **Classification:** Gate — spec contract.
 

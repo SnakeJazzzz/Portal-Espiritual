@@ -2,7 +2,7 @@
 
 **Última actualización:** 2026-05-15
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `feat(webhook): S7 close-out — refund-path defense + final review minors` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `chore(s8): close-out — login magic link + rate limit` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -176,12 +176,38 @@ Decisiones tomadas durante S7:
 
 Configuración externa S7: sin cambios. Stripe Customer Portal sigue configurado solo en test mode (live mode pending S11 pre-launch). Resend domain `portalespiritual.com.mx` verified. Stripe SDK pin a `'2025-02-24.acacia'` mantenido.
 
+### S8 — Login magic link + rate limit (Tests 9.no-leak, 10, 11) ✅
+
+`/api/auth/login` (POST email → magic link login token, 15-min TTL) con rate limit DB-backed 5/min/IP. Nueva tabla `rate_limit_attempts` (id, endpoint, ip `inet`, attempted_at) + índice composite `(endpoint, ip, attempted_at DESC)`. Helper `checkRateLimit` con INSERT-then-COUNT semantics. Route handler con 5 branches, todos pasando por `delayUntil(MIN_RESPONSE_MS=800)` para flat timing. Template `sendLoginLinkEmail` sin idempotency header (user-initiated, cada request es genuinamente distinto). 4 tests integración (9.ghost, 9.real, 10, 11).
+
+Pre-S8 fix (V6 sanity check de Gate A reveló TS error pre-existente heredado de S4):
+- `692fecb` fix(test): align makeReq init type with NextRequest constructor
+
+Commits S8 (Gates A-D, 5 commits):
+- `0e21eb0` feat(db): rate_limit_attempts table + index — Gate A
+- `1b09da7` feat(rate-limit): DB-backed per-IP rate limit — Gate B (amend post-empirical verification: cast `::inet` resultó innecesario por wire-protocol describe handshake)
+- `4167d4b` feat(email): login-link template — Gate C
+- `c87db3a` test(spec): tests 9.no-leak / 10 / 11 in RED with route stub — Gate D step 1
+- `31009f7` feat(auth): POST /api/auth/login with rate limit + no-leak + flat timing — Gate D step 2
+
+S8 close-out:
+- `[S8 close-out]` chore(s8): close-out — login magic link + rate limit (hash buscarlo en `git log --grep="S8 close-out"`)
+
+Tests: **29/29 PASS** (4 nuevos en S8: Test 9.ghost, 9.real, 10, 11). Subimos de 25/25 (S7 close-out 23/23 + 2 customer-id-preservation tests landed en `747ac81` post-S7 close-out commit) → 29/29.
+
+Smoke manual S8: **Skipped per standing rule "smoke selectivo: solo paths sin cobertura de integración".** Tests 9/10/11 cubren el contract end-to-end (no-leak, exceed, isolation). Si JP reporta abuse spike post-launch (Sentry/logs muestren rate-limit hits sostenidos), reactivar smoke con curl real contra Resend para validar p99 floor de MIN_RESPONSE_MS.
+
+Decisiones tomadas durante S8:
+
+1. **`inet` nativo de Drizzle 0.36.4 (D1).** Verificado empíricamente en Gate 0 V2 que `inet` está exportado por `drizzle-orm/pg-core`. Plan ofrecía fallback a `text` + manual ALTER pero no fue necesario. `ip: opts.ip` (string plano) compila clean tanto en INSERT como en SELECT WHERE sin `as any` ni cast SQL — la conversión `inet` ocurre vía wire-protocol describe handshake del driver pg/Neon, sin intervención manual del query builder.
+2. **INSERT-then-COUNT en rate-limit helper (D2).** Pattern verbatim del plan. La row del request bloqueado contamina su propia ventana hasta `windowSeconds` — acceptable trade-off vs race window que permitiría burst attacks bajo COUNT-then-INSERT. WHY documentado en docstring del helper + commit body de Gate B.
+3. **MIN_RESPONSE_MS=800 (D3, NO 250 del plan).** 800ms da margen sobre Resend p99 (~600ms) para mantener flat timing realista. Aplicado a TODOS los branches del route handler vía `delayUntil(startedAt + MIN_RESPONSE_MS)`. NO bajar sin Resend SLA confirmado.
+4. **429 explícito vs always-200 (D4).** 429 con body `'rate limited'` permite a clients legítimos distinguir abuse de error de aplicación. Si threat model post-launch identifica adversary capable of timing attacks at scale, revisitar always-200 pattern (item nuevo en backlog 6.5).
+5. **Criterion 5 (timingSafeEqual) por inspección de código, no test (D5).** `src/lib/auth-tokens.ts:32-49` mantiene WHY comment de 4 líneas + `crypto.timingSafeEqual(expectedBuf, actualBuf)` en línea 49 — verificado visualmente al cierre de S8. NO se añadió test directo. Spy-based test rechazado como impl-coupled (se rompe ante cualquier refactor legítimo); statistical test rechazado por flake. Code review humano del path es el guard.
+
 ---
 
 ## Pendiente
-
-### S8 — Login magic link + rate limit (Tests 9-remaining, 10, 11)
-`/api/auth/login` (POST email → magic link login token, 15-min TTL). Rate limit (table `rate_limit_attempts` ya planeada en S1). Tests: 9 timing-safe-comparison + 9 no-account-leak + 10 + 11.
 
 ### S9 — Waitlist + /privacidad + home integration
 Tabla `waitlist`, form en MentoriaCard cuando `capacityFull=true`. Página de privacidad (LFPDPPP). Integración del MentoriaCard en homepage debajo de la grid 2x2 existente (additive).
@@ -231,6 +257,9 @@ Las suscripciones en Stripe siguen vivas y son cancelables manualmente desde Str
 9. **`/api/billing-portal/create` JS-driven button** (S5 fix `b7e485a`) — el endpoint devuelve JSON, no redirect. Form-POST original llevaba al usuario a página JSON cruda. ManageBillingButton (Client Component) hace fetch + `window.location.href`.
 10. **Inline-edit approach** — "siempre editable con styling fuerte + hint prominente + ✓ guardado feedback" en lugar de patrón "Editar/Guardar/Cancelar global". Refactor diferido a Phase 6.5 si JP da feedback.
 11. **Stripe CLI account mismatch** (smoke S3) — autenticación a cuenta equivocada causa silent false negative en `stripe listen`. Mitigación: `stripe config --list` antes de cualquier smoke.
+12. **`tsc --noEmit` como standing rule de cierre de gate** (lección S8 Gate A V6 sanity check). El check reveló un TS error pre-existente en `tests/integration/auth-verify.test.ts:62` (DOM RequestInit vs NextRequest internal RequestInit, signal `null` no asignable) que había viajado intacto desde S4 (`7fa7780`) porque ningún gate previo corría tsc como contract de close-out. `npm run build` no lo captura porque `next build` no incluye `tests/`; vitest tampoco hace strict TS check. A partir de S8, `npx tsc --noEmit` con exit 0 es contract obligatorio al cierre de cada gate.
+13. **Empirical-first extendido a CUALQUIER afirmación técnica** (lección S8 Gate B amend). La afirmación inicial "operator `inet = text` no existe en postgres → cast `::inet` necesario" era cierta solo para queries con literales sin parametrizar. Scratch script de 3 tests verificó empíricamente que con wire-protocol parametrization (Drizzle + pg/Neon) el cast NO es necesario. Amend del commit `38bba50 → 1b09da7` corrigió impl + body. La regla de `~/.claude/CLAUDE.md` developer global sobre `as any` ahora aplica también a SQL casts, library workarounds, y cualquier "X es necesario porque Y" que se pueda verificar en <5 min con un scratch script ad-hoc.
+14. **Heredoc + caracteres especiales → siempre `git commit -F file`** (lección S8 Gate B re-amend). El primer amend del Gate B usó `git commit --amend -m "$(cat <<'EOF' ... EOF)"` con backslash-escapes defensivos en backticks (`\`value\``) que terminaron persistiendo literalmente en el commit body porque heredoc quoted preserva backslashes. Re-amend con `git commit --amend -F /tmp/msg.txt` arregló el escape. A partir de Gate B, commit bodies con caracteres especiales (backticks, `$`, etc.) se escriben siempre via Write + `-F`, nunca heredoc.
 
 ## Caveats de setup local (de `docs/DEVLOG.md`)
 
@@ -317,3 +346,13 @@ Items S7 — smoke findings (post-close-out):
   **Trade-off de seguridad a discutir:** ¿qué pasa si dos personas distintas usan misma email accidentalmente? El customer del primer subscriber se "asocia" a la sesión del segundo. Esto requiere diseño cuidadoso, no fix mecánico. Defer a S11 pre-launch security pass.
 
   **Related fix landed:** the security-latent bug where `handle-checkout-completed.ts` overwrote `stripeCustomerId` on every webhook (allowing a malicious or mistaken second checkout to redirect a legitimate subscriber's Stripe customer to a different account) was fixed in the S7 post-close-out commit. The handler now preserves existing `stripeCustomerId` on upsert + logs `console.warn` on mismatch. This 6.5 item is the COMPLEMENTARY fix on the checkout-creation side (passing the existing customer to Stripe so the mismatch never happens in the first place for known subscribers).
+
+Items S8 — Gate D / E findings (diferidos):
+
+- **Error-path no-leak hardening en `/api/auth/login`.** WHY: spec tests 9/10/11 no ejercitan path de error de DB o Resend; un throw no manejado en el handler actualmente bubblea a Next default 500 sin pasar por `delayUntil`, rompiendo el contrato de flat timing en presencia de errores inesperados (timing leak por error path vs success path). Scope: try/catch global en el route handler con `delayUntil(startedAt + MIN_RESPONSE_MS)` antes de retornar 500. Trigger: cualquier error reportado en Sentry/logs para `/api/auth/login` post-launch, o pre-launch checklist S11 si se quiere hardening preventivo antes de exposure. Lugar: `src/app/api/auth/login/route.ts`.
+
+- **`as any` sweep en test helpers (S3-S8).** WHY: cada test file de Phase 6 usa `as any` para castear DOM Request → NextRequest en helpers (`postLogin` en S8, `makeReq` en S4, `postWebhook` en S3/S6/S7). El fix de S8 Gate A sobre `auth-verify.test.ts:62` (cambio de `RequestInit` → `ConstructorParameters<typeof NextRequest>[1]` en el parámetro de `init`) sugiere que la mayoría de los `as any` actuales reflejan reasoning no-verificado de S3-S7 y son innecesarios bajo TS strict actual. Scope: verificar empíricamente cada uso heredado en `tests/integration/*.test.ts` + `tests/helpers/*.ts`, eliminar los que tsc no requiera. Trigger: sweep de cleanup al cierre de Phase 6 (S10/S11), o cualquier touch significativo a test infrastructure. Lugar: todos los archivos de `tests/` con `as any`.
+
+- **APP_URL validation en magic link URL del email.** WHY: Test 9.real verifica que se envía exactamente 1 email pero NO valida el contents del URL pasado a Resend. Si `APP_URL` env var queda mal configurado (e.g., trailing slash, scheme omitido, IP literal en prod, env no cargado correctamente en serverless), el magic link es no-funcional para subscribers reales pero el test pasa silenciosamente. Scope: assertion adicional en test 9.real que extraiga el URL del último sent email y verifique esquema HTTPS + hostname válido + path `/api/auth/verify` + query `token` no vacío. Requeriría que el mock `resend-mock.ts` persista el `magicLinkUrl` o el `html` real en `sentEmails` para que el test pueda extraerlo (cambio breaking del shape del mock — coordinar con M4 abajo). Trigger: si JP reporta magic-link broken post-launch con causa env, o pre-launch checklist S11. Lugar: `tests/integration/auth-login.test.ts` (assertion) + `tests/helpers/resend-mock.ts` (shape).
+
+- **Subject duplication entre `email.ts` y `resend-mock.ts`.** WHY: cada template tiene su subject literal duplicado en ambos archivos (e.g. `'Tu enlace de acceso a Portal Espiritual'`, `'Tu acceso a Portal Espiritual — Mentoría 1-a-1'`, `'Ya tienes una suscripción activa'`, etc.). Si alguien cambia el subject en `email.ts` y olvida actualizar el mirror, el mock divergerá silenciosamente y los tests podrían pasar con copy desactualizada. Identificado durante review de Gate C de S8. Scope: extraer subjects a constantes exportadas desde `email.ts` (o un módulo nuevo `email-subjects.ts`), importarlas en ambos archivos para que el compilador cace divergencia. Trigger: próximo cambio de copy en cualquier template (S10 pre-launch UX pass es candidato natural), o si se hace el fix de APP_URL validation que ya requiere tocar `resend-mock.ts`. Lugar: `src/lib/email.ts` + `tests/helpers/resend-mock.ts`.
