@@ -29,6 +29,9 @@ export default function Footer() {
         © {new Date().getFullYear()} Portal Espiritual. Todos los derechos reservados. ·{' '}
         <a href="/privacidad" className="hover:text-white/60 transition-colors">
           Aviso de privacidad
+        </a>{' '}·{' '}
+        <a href="/login" className="hover:text-white/60 transition-colors">
+          Iniciar sesión
         </a>
       </p>
     </footer>
