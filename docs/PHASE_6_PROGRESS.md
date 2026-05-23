@@ -1,8 +1,8 @@
 # Phase 6 — Progreso de Ejecución
 
-**Última actualización:** 2026-05-16
+**Última actualización:** 2026-05-22
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `chore(s9): close-out — waitlist + /privacidad + home integration` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `chore(s10): close Gate A + Gates B-E + mini-gate 10.9 (smoke pending)` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -250,10 +250,65 @@ Caveats heredados que persisten:
 
 ---
 
+### S10 (en progreso, code-complete excepto 10.8b + 10.8d) — Admin panel + auth UX entry points + pre-launch partial ✅⚠️
+
+`scripts/seed-admin.ts` upsert vía `ADMIN_SEED_EMAIL` + `/admin` layout con `requireAdmin` + Footer entry "Admin" + SubscribersList + inline-edit `sessions_remaining` (con test integración D6 + audit_log) + admin CancelSubscriptionButton + admin ResendWelcomeButton (S10 Task 10.6, mitiga BUG-S7-edge-1 sub-variante 1 automation-wise) + subscriber detail page `/admin/[id]` componiendo todo. Mini-gate 10.9 añadido como amendment al plan v2 tras descubrir gap en review (orphan auth flow más profundo de lo documentado en backlog 6.5).
+
+Commits Gate A (3):
+- `46de57a` feat(admin): seed-admin script
+- `3abe33a` feat(admin): admin layout with requireAdmin gate
+- `c0e15be` feat(footer): login link for re-authentication path
+
+Commits Gates B-E (5):
+- `4eece1c` feat(admin): subscribers list page with active/canceled toggle
+- `9bcde55` feat(admin): inline edit sessions_remaining with audit_log (incluye test D6)
+- `059d97f` feat(admin): CancelSubscriptionButton
+- `441d558` feat(admin): resend welcome email with overwrite-in-place status
+- `789d09f` feat(admin): subscriber detail page with edits + actions
+
+Commits Gate F parcial (2):
+- `4e7ceed` fix(email): welcome copy third-person → first-person (M5 backlog 6.5)
+- `51dec7e` docs(runbook): BUG-S7-edge-1 variante B refund-reversal procedure (sub-variante 2 cobertura inicial)
+
+### Mini-gate 10.9 — Auth UX entry points (amendment to plan v2)
+
+Amendment al plan v2 — gap UX descubierto en S10 review tras pre-checks empíricos (P0.3 reveló que `/login` page literalmente no existía, contradiciendo PROGRESS:407 que afirmaba "/login existe pero la URL es hidden"). Closes the orphaned auth flow gap more completely than Task 10.2.5 (commit c0e15be) did alone.
+
+Commits (5):
+- `6678014` feat(login): /login page with email-only magic link request (S8 endpoint UI)
+- `4d6bd25` feat(footer): relabel login link to "Admin" with discrete styling
+- `aa4b34a` feat(mentoria): add "Iniciar sesión" CTA below primary capacity-aware CTA
+- `9e03003` docs(runbook): cover BUG-S7-edge-1 variante B sub-variant 1 (handler fails before auth_token insert)
+- `3399c56` docs(progress): correct PROGRESS:407 — /login page didn't exist, not just hidden
+
+Decisiones cerradas mini-gate 10.9:
+
+1. **D-10.9-1 — MentoriaCard secondary CTA "Iniciar sesión" always visible** (no hide-on-session detection en Phase 6, defer optimization a 6.5). Same footprint que primary CTA, subordinated by color/opacity only (border-white/20 vs primary white/60). Stacked vertically debajo del CTA capacity-aware. Cubre subscribers existentes que regresan a /mentoria post-logout o desde re-share del URL sin tener que descubrir el link "Admin" en Footer.
+2. **D-10.9-2 — Footer login link relabel "Iniciar sesión" → "Admin"**. JP necesita acceso directo a /login para entrar a /admin sin pasar por el flow customer (MentoriaCard). Label semánticamente claro para él, irrelevante para visitantes casuales. Mismo endpoint, diferente label — semantic split, not technical. Posición: derecha del Footer en línea propia, color tenue text-portal-text/60. No destacado.
+3. **D-10.9-3 — Empty-state Gate B (rows.length === 0)** aceptado como precedente de "drifts UX-defensivos triviales documentados en commit body". No requiere revert del commit `4eece1c`. Pattern aplicable prospectivamente: UX-defensive nano-additions fuera del plan literal son OK si están documentadas explícitamente en commit body + no introducen design decisions sustantivas.
+4. **D-10.9-4 — /login es restablecimiento de sesión, NO registro**. El único path para crear cuenta sigue siendo checkout pago vía Stripe (Phase 6 architecture invariant: subscriber existe si y solo si pagó). /login expone el endpoint S8 existente (POST `/api/auth/login` con rate limit + timing-safe response) a subscribers que perdieron sesión. UI: form simple email-only. Success state: "Te enviamos un enlace de acceso. Revisá tu inbox." (mismo mensaje para email registrado o no, garantizado por timing-safe contract del endpoint S8).
+5. **D-10.9-5 — Forma A para JP es bloqueante LIVE**. JP entra a producción vía: Footer "Admin" → /login → email → magic link real → /cuenta → escribe /admin en URL bar. Forma B (script `scripts/login_url.ts`) sigue válida solo en dev local del developer, NO para JP en producción. Smoke browser final de S10 debe incluir Forma A end-to-end con email real recibiendo magic link real desde Resend.
+
+Notas adicionales:
+
+- **`/login` page creation revealed pre-existing S8 gap, not new S10 work.** El endpoint POST `/api/auth/login` existía desde S8 (commit `31009f7`) con su rate limit + timing-safe contract validados por tests integración (9.ghost, 9.real, 10, 11 — todos green). La UI consumidora NUNCA se construyó en S8. PROGRESS:407 documentó incorrectamente el estado como "URL hidden" en lugar de "page missing". Mini-gate 10.9.4 corrigió el record histórico preservando el item original como audit trail (no se borró, solo marcó RESUELTO).
+
+- **Sub-variante 1 del runbook (10.9.3) ↔ Task 10.6 cross-ref.** Sub-variante 1 (handler falla DESPUÉS de INSERT subscriptions, ANTES de INSERT auth_tokens → sub huérfana sin token) está mitigada automation-wise por el admin route "Reenviar welcome email" (S10 Task 10.6, commit `441d558`). El runbook ahora documenta el playbook manual que JP sigue cuando un subscriber reporta el síntoma — login a /admin, click subscriber, click Resend Welcome, confirm con subscriber. Sin pérdida de datos.
+
+- **Pre-checks empíricos validados pre-código (P0.1–P0.4):** identificación de la opción β materializada en Gate A; runtime APIs (sendWelcomeEmail/createAuthToken/welcomeEmailStatus/bg-portal-bg drift) todas OK; `/login` page missing CRÍTICO (drove Opción 1); runbook coverage gap (sub-variante 1 missing) detectado y resuelto. Lección 17 S9 ("Plan v2 vs codebase reality drift") aplicada a backlog reading también — propuesta de standing rule a sparring.
+
+**Tests:** 32/32 PASS al cierre de mini-gate 10.9 (sin tests nuevos en 10.9 — el smoke cubre los flows UI de auth; tests integración para LoginForm reservados a Phase 6.5 si surgen regresiones post-launch).
+
+**Smoke browser NO ejecutado todavía** — pendiente sesión próxima como smoke consolidado: Gate A + Gates B-E + mini-gate 10.9 + 10.8a (M5 fix). Smoke = Forma A end-to-end con email JP real + visual review todas las pages nuevas en mobile 375px in-app Instagram browser.
+
+Pendiente para LIVE (resto de Gate F): 10.8b typography polish JP-driven + 10.8d.* (LFPDPPP review legal async, Stripe Customer Portal LIVE config, Resend DNS re-verify, visual review templates, $1 MXN test charge LIVE, Vercel preview deploy, merge a main, watch first checkout, tag phase-6-launched).
+
+---
+
 ## Pendiente
 
-### S10 — Admin panel + seed admin + pre-launch checklist
-`/admin` rutas con `requireAdmin`. Seed inicial del admin via `ADMIN_SEED_EMAIL`. Pre-launch checklist (S11 gate).
+### S10 — Resto de Gate F (10.8b polish + 10.8d.* coord JP + LIVE smoke)
+Items que requieren coordinación con JP en vivo o setup externo: typography polish dashboard, LFPDPPP review legal, Stripe Customer Portal LIVE mode, DNS Resend re-verify, $1 MXN test charge LIVE, merge a main, tag. Ver close-out commit chore(s10) para checklist completa.
 
 ---
 
