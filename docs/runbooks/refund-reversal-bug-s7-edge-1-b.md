@@ -1,16 +1,67 @@
-# Runbook — BUG-S7-edge-1 variante B: revertir refund erróneo post Stripe retry
+# Runbook — BUG-S7-edge-1 variante B: handler failures post-INSERT subscription
+
+**Scope:** ambas sub-variantes de fallos en `handle-checkout-completed.ts` después de que `insertSubscriptionIfCapacity` insertó exitosamente la `subscription` row. El nombre "variante B" se mantiene por estabilidad de referencias externas (PHASE_6_PROGRESS:354-356, commit anchors), pero este runbook cubre ambas sub-variantes operacionales — JP debe distinguirlas en la detección para aplicar la mitigación correcta.
 
 **Status:** procedimiento manual. Automatización descartada en D4 de S10 planning (requiere distinguir refunds legítimos del race S7 de bug-induced, sin test clocks la lógica no es validable safely).
 
-**Probabilidad de ocurrencia:** muy baja (≤8 subs en Phase 6, requiere falla de red + Stripe retry en ventana estrecha del handler). Si emerge en producción, este runbook + 10-15 min de trabajo manual de JP lo resuelve sin pérdida de datos.
+**Probabilidad de ocurrencia:** muy baja (≤8 subs en Phase 6, requiere falla de red + retry de Stripe en ventana estrecha del handler). Si emerge en producción, este runbook + 10-15 min de trabajo manual de JP lo resuelve sin pérdida de datos.
 
 ---
 
-## Contexto del bug
+## Triaje rápido — ¿cuál sub-variante es?
+
+Cuando un subscriber reporta problema post-checkout:
+
+| Síntoma observable | Sub-variante | Sección |
+|---|---|---|
+| Pagó pero **nunca recibió** email welcome / magic link, sub aparece en `/admin` | **1** (sin auth_token) | [Sub-variante 1](#sub-variante-1) |
+| Pagó, **recibió email "duplicate subscription"** + refund automático aunque era su primer intento | **2** (refund path erróneo) | [Sub-variante 2](#sub-variante-2) |
+| Pagó, **NO recibió ningún email** Y sub NO aparece en `/admin` | edge fuera de este runbook — escalar (posible failure en INSERT subscriptions mismo, no en handler post-INSERT) | — |
+
+---
+
+## Sub-variante 1
+
+### Contexto
+
+`handle-checkout-completed.ts` puede fallar **después** de que `insertSubscriptionIfCapacity` insertó la `subscription` row, pero **antes** de que `createAuthToken` insertara la `auth_tokens` row. Ejemplo: network blip al DB en la segunda transacción, o crash del runtime entre las dos llamadas.
+
+Stripe retry **NO recupera**: el segundo intento de `insertSubscriptionIfCapacity` ve la sub existente (unique constraint sobre `stripe_subscription_id`) y devuelve `duplicate_subscription` → el handler entra al refund path → reembolso erróneo. **Esto coincide con sub-variante 2 si el retry ocurre.**
+
+Si Stripe NO hace retry (por ejemplo, el handler timeout-eó y Stripe ya considera entregado el webhook), la sub queda **huérfana**: existe en DB pero sin magic link y sin recovery automático. El subscriber pagó, tiene `subscriptions` row con `welcome_email_status='pending'` (default), pero no puede loguearse.
+
+### Síntomas observables (sub-variante 1)
+
+1. Subscriber reporta: "Pagué pero nunca me llegó el correo de acceso."
+2. `subscriptions` table tiene 1 row para esa email, `welcome_email_status = 'pending'` (no `'sent'`, no `'failed'`).
+3. `auth_tokens` table NO tiene ninguna row con `subscriber_id = <id>` y `kind = 'welcome'`.
+4. Stripe Dashboard muestra 1 charge successful para el customer, NO refunded.
+
+### Playbook de mitigación (sub-variante 1)
+
+**El handler S10 Task 10.6 ya cubre el recovery automatizado.** Procedimiento manual de JP:
+
+1. Login a `/admin` (vía Footer "Admin" → `/login` → magic link al email de JP).
+2. Localizar al subscriber en la lista `/admin` (filter Activas).
+3. Click en el nombre → `/admin/[id]`.
+4. En la sección "Suscripción activa", verificar `Welcome email: pending`.
+5. Click botón **"Reenviar welcome email"**.
+6. Espera al mensaje `Estado: sent` debajo del botón.
+7. Confirmar con el subscriber que recibió el correo (escribir por Instagram DM).
+
+**Audit:** la acción se registra automáticamente en `audit_log` con `action='resend_welcome_email'` y `target_subscriber_id` correcto (no requiere log manual adicional).
+
+**No hay refund involucrado en sub-variante 1.** Si JP ve refund automático en Stripe Dashboard, escalar a [Sub-variante 2](#sub-variante-2) — el bug se agravó con retry.
+
+---
+
+## Sub-variante 2
+
+### Contexto
 
 `handle-checkout-completed.ts` puede fallar después de que `insertSubscriptionIfCapacity` insertó la `subscription` row Y `createAuthToken` creó el token. Si el fallo ocurre en el envío del email welcome (o más adelante), Stripe re-entrega el evento `checkout.session.completed`. El dispatcher idempotent verifica `stripe_events` y procede; el handler corre de nuevo. Esta vez `insertSubscriptionIfCapacity` ve la sub ya existente (vía unique constraint sobre `stripe_subscription_id`) y devuelve `duplicate_subscription`. El handler ejecuta el **refund path** → reembolso al subscriber legítimo + email "Ya tienes una suscripción activa" (que técnicamente es cierto, pero engañoso en este caso porque la "sub existente" es del primer intento del MISMO checkout).
 
-**Síntomas observables que indican variante B (no race S7 legítimo):**
+### Síntomas observables (sub-variante 2, no race S7 legítimo)
 
 1. Subscriber reporta confusión: "Pagué pero me dijeron que ya tenía sub activa y me reembolsaron, pero nunca había suscrito antes."
 2. `subscriptions` table tiene **exactamente 1 row** para esa email (no múltiples).
@@ -21,9 +72,9 @@ Compárese con race S7 legítimo: 2 customers distintos, 2 charges, 1 ganador + 
 
 ---
 
-## Playbook de detección
+### Playbook de detección (sub-variante 2)
 
-Cuando JP recibe reporte del subscriber:
+Cuando JP recibe reporte del subscriber que coincide con síntomas arriba:
 
 1. **Stripe Dashboard** → buscar customer por email → contar charges totales en últimas 24h.
    - **1 charge refunded** + sub no aparece active → posible variante B.
@@ -50,7 +101,7 @@ Cuando JP recibe reporte del subscriber:
 
 ---
 
-## Playbook de reversión
+### Playbook de reversión (sub-variante 2)
 
 Pasos a ejecutar en orden:
 
@@ -107,6 +158,8 @@ Email manual (no template — un email personalizado de JP por Instagram DM o re
 
 ---
 
+---
+
 ## Prevención (Phase 6.5 o post-launch)
 
 Decisión cerrada en D4 de S10: NO automatizar. Trigger para revisitar:
@@ -118,5 +171,6 @@ Mientras no se cumpla ninguno, este runbook + monitoring manual de JP es la defe
 
 ---
 
-**Última actualización:** 2026-05-22 (S10 Gate F partial — task 10.8c)
-**Anchor:** backlog 6.5 BUG-S7-edge-1 variante B (PHASE_6_PROGRESS.md), spec §13 webhook idempotency
+**Última actualización:** 2026-05-22 (S10 mini-gate 10.9 task 10.9.3 — añadida sub-variante 1)
+**Historial:** creación inicial 2026-05-22 (S10 Gate F task 10.8c — sub-variante 2 cobertura) → amplificación 2026-05-22 (mini-gate 10.9 task 10.9.3 — sub-variante 1 añadida)
+**Anchor:** backlog 6.5 BUG-S7-edge-1 (PHASE_6_PROGRESS.md:354 main, :356 variante B), spec §13 webhook idempotency, S10 Task 10.6 (admin Resend Welcome — mitigación automatizada de sub-variante 1)
