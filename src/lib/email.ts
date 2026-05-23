@@ -77,7 +77,7 @@ function welcomeHtml(url: string): string {
 <p style="font-size: 16px; line-height: 1.5;">Tu suscripción está activa. Para entrar a tu panel y completar tu perfil, abre este enlace:</p>
 <p style="margin: 24px 0;"><a href="${url}" style="background: #1a1a1a; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">Abrir mi panel</a></p>
 <p style="font-size: 14px; color: #666;">Este enlace es válido por 7 días y solo puede usarse una vez.</p>
-<p style="font-size: 14px; color: #666;">Si no fuiste tú quien se suscribió, escríbele a Juan Pablo por Instagram.</p>
+<p style="font-size: 14px; color: #666;">Si no fuiste tú quien se suscribió, escríbeme por Instagram.</p>
 </body></html>`;
 }
 
