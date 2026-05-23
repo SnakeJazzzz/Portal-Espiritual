@@ -1,6 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
+import Link from 'next/link';
 import CelestialBorder from '@/components/CelestialBorder';
 import { mentoriaConfig } from '@/config/mentoria';
 
@@ -42,7 +43,7 @@ export default function MentoriaCard({ capacityFull, onWaitlistClick }: Mentoria
         <p className="mt-4 text-lg lg:text-2xl text-portal-text/90 leading-relaxed">
           {mentoriaConfig.description}
         </p>
-        <div className="mt-6">
+        <div className="mt-6 space-y-3">
           {capacityFull ? (
             <button
               type="button"
@@ -61,6 +62,14 @@ export default function MentoriaCard({ capacityFull, onWaitlistClick }: Mentoria
               {pending ? 'Redirigiendo…' : mentoriaConfig.ctaAvailable}
             </button>
           )}
+
+          {/* Secondary CTA — re-entry for existing subscribers (D-10.9-1) */}
+          <Link
+            href="/login"
+            className="block w-full bg-transparent border border-white/20 text-portal-text/70 font-heading text-xl lg:text-2xl py-3 px-6 rounded-xl text-center hover:text-white hover:border-white/40 transition-colors"
+          >
+            Iniciar sesión
+          </Link>
         </div>
       </div>
     </CelestialBorder>
