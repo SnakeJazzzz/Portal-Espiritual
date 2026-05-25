@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { getEnv } from '@/lib/env';
 
-const COOKIE_NAME = 'pe_session';
+export const COOKIE_NAME = 'pe_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function createSession(subscriberId: string) {
