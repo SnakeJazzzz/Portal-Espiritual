@@ -1,8 +1,8 @@
 # Phase 6 — Progreso de Ejecución
 
-**Última actualización:** 2026-05-22
+**Última actualización:** 2026-05-25
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `chore(s10): close Gate A + Gates B-E + mini-gate 10.9 (smoke pending)` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `chore(s10): smoke round 1 fixes — login redirect by role + admin logout + affordance + cleanup` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -302,6 +302,69 @@ Notas adicionales:
 **Smoke browser NO ejecutado todavía** — pendiente sesión próxima como smoke consolidado: Gate A + Gates B-E + mini-gate 10.9 + 10.8a (M5 fix). Smoke = Forma A end-to-end con email JP real + visual review todas las pages nuevas en mobile 375px in-app Instagram browser.
 
 Pendiente para LIVE (resto de Gate F): 10.8b typography polish JP-driven + 10.8d.* (LFPDPPP review legal async, Stripe Customer Portal LIVE config, Resend DNS re-verify, visual review templates, $1 MXN test charge LIVE, Vercel preview deploy, merge a main, watch first checkout, tag phase-6-launched).
+
+### Smoke round 1 findings + fixes (post-mini-gate 10.9, 2026-05-25)
+
+Primer smoke browser ejecutado por user con `michael.devlyn.tech@gmail.com` (subscriber regular "Smoke-TestS10") + `akasha.infinito8@gmail.com` (JP admin). Cazados varios issues — algunos triviales, uno con implicación de seguridad/UX (logout flow + redirect post-logout). Round 1 cierra los fixes de código antes del segundo smoke pre-LIVE.
+
+Commits (5):
+- `5c18881` fix(login): branch redirect-if-authenticated by subscriber role
+- `39426f3` fix(auth): explicit cookie deletion on logout response
+- `2f9528b` feat(admin): logout button in layout header
+- `587d816` feat(admin): "Ver detalle →" link column for discoverability
+- `acc64b9` feat(admin): bare-minimum readability pass
+
+Cross-ref smoke findings → fixes:
+
+| Finding (smoke round 1) | Fix landed |
+|---|---|
+| JP/admin redirected a /cuenta tras login (mostraba "procesando" fallback porque no tiene subscription) | `5c18881` — /login ahora ramifica por `subscriber.role` |
+| Click "Iniciar sesión" tras logout llevó a /cuenta/perfil sin renderizar LoginForm (cookie persistente post-logout) | `39426f3` — explicit `response.cookies.delete(COOKIE_NAME)` defense H1 |
+| JP sin path de salida observable desde /admin (tenía que escribir URLs manualmente) | `2f9528b` — Logout button en header de admin layout |
+| User no descubrió click-on-name como navigation affordance hasta ~5 intentos | `587d816` — Columna "Ver detalle →" explícita en lista admin |
+| Admin pages visualmente densas / texto chico para uso JP-side | `acc64b9` — Bare-minimum readability (text-sm → text-base, padding, divisores) |
+
+Decisiones aplicadas (cierran en commit bodies):
+
+- **D-Smoke-1** (lista admin = Opción B con 2 affordances visibles) → `587d816`
+- **D-Smoke-2** (logout en /admin = Header derecha, mismo pattern que /cuenta) → `2f9528b`
+- **D-Smoke-3** (polish bare minimum, lista PROHIBIDA registrada como audit) → `acc64b9`
+- **D-Smoke-4** (login redirect ramificado por role) → `5c18881`
+- **D-Smoke-5** (JP cleanup quirúrgico, NO drop + re-seed) → scratch ad-hoc preservó id/email/role/created_at/stripe_customer_id/timezone/profile_completed_at; UPDATE selectivo de los 5 campos contaminados (name, instagramHandle, dateOfBirth, phone, notesFromSubscriber)
+- **D-Post-P0-1** (defense H1 cookie deletion explicit) → `39426f3`
+- **D-Post-P0-2** (NO change a log-out-all-devices, status quo log-out-this-device) → deferred ítem en backlog 6.5
+- **D-Post-P0-3** (NO investigar H3 caching ahora, escalar si reaparece) → deferred ítem en backlog 6.5
+- **D-Post-P0-4** (JP cleanup confirmado) → scratch ad-hoc ejecutado, NO committed
+- **D-Post-P0-5** (DB cleanup amplio Opción B: TRUNCATE sessions/auth_tokens/audit_log; PRESERVAR subscribers/subscriptions/stripe_events/products/waitlist) → scratch ad-hoc ejecutado, NO committed
+
+Items deferred a backlog 6.5 (no resueltos, anchored para post-launch):
+
+- **H2 — log-out-all-devices semantics.** Hoy `deleteSession()` borra solo la session que matchea el cookie value actual. Multi-session pollution observada en smoke round 1 (4 sessions en DB para 2 subscribers) sugiere que algunos flows crean sessions paralelas sin invalidar previas. Cambio a "log out from all my sessions" requiere iterar `WHERE subscriberId = ?` en lugar de `WHERE id = ?`. Decisión de UX/security, NO técnica — defer hasta primer reporte real post-launch.
+- **H3 — Next 16 server component caching residual.** /login tiene `force-dynamic` pero podrían existir cache layers más arriba (route segment, edge). Si tras smoke round 2 con `39426f3` aplicado el bug de redirect-sin-pedir-email reproduce, reabrir investigación con curl + cookie jar empírico. Cost: ~30 min focused debug.
+- **Logout double-call observable en dev logs** (POST /api/auth/logout 200 + POST 303). Probable Next 16 dev-mode bundler warmup quirk, no afecta producción. Verificar empíricamente post-Vercel preview deploy en 10.8d.7 — si solo aparece en dev, no es bug.
+
+Pre-existing items revealed by smoke round 1:
+
+- **JP contamination via shared session flow** (cascade finding): el bug de /login redirect (sin pedir email) hizo que JP, post-logout-aparente, fuera redirected a /cuenta/perfil. JP llenó el perfil sin saber que estaba editando SU PROPIO subscriber row (no el subscriber test que pensaba). Cleanup quirúrgico ya aplicado en PASO 2 (5 campos restaurados a valor seed; UPDATE preservó role/email/id/created_at/timestamps). El bug subyacente fue resuelto por `5c18881` + `39426f3`.
+
+Estado DB post-cleanup (pre próximo smoke):
+- subscribers: 2 (JP + Smoke-TestS10 preservados)
+- subscriptions: 1 active (de Smoke-TestS10)
+- sessions: 0 (cleanup PASO 1)
+- auth_tokens: 0 (cleanup PASO 1)
+- audit_log: 0 (cleanup PASO 1)
+- products + waitlist + stripe_events: preservados intactos
+
+Nota operacional: tras este close-out, `npm test` corrido durante el cierre wipea `subscribers` (TRUNCATE en `tests/integration/setup.ts:6`). JP fue re-seedado vía `scripts/seed-admin.ts` post-cierre — produce el mismo end state que el cleanup quirúrgico de PASO 2 (name='Juan Pablo' + resto NULL). Smoke-TestS10 NO sobrevive al test wipe — re-checkout vía `/mentoria` necesario en próximo smoke si el flow lo requiere.
+
+**Tests:** 32/32 PASS al cierre. **tsc --noEmit exit 0**. Sin tests nuevos en round 1 (smoke cubre los fixes user-visible).
+
+**Pendiente:** segundo smoke browser explícito — checklist desde sparring Claude.ai. Validaciones críticas del round 2:
+1. Forma A end-to-end JP: Footer "Admin" → /login → email real → magic link → /admin (no /cuenta, valida `5c18881`)
+2. Logout desde /admin clears cookie cleanamente (valida `39426f3`)
+3. Post-logout, click "Iniciar sesión" desde MentoriaCard o Footer → /login renderiza form (no redirect)
+4. Lista admin: descubrible la columna "Ver detalle →" en addition al name link (valida `587d816`)
+5. Readability del admin admin a 16px confortable en mobile + desktop (valida `acc64b9`)
 
 ---
 
