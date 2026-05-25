@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function LoginPage() {
   const ctx = await getSession();
-  if (ctx) redirect('/cuenta');
+  if (ctx?.subscriber.role === 'admin') redirect('/admin');
+  if (ctx?.subscriber) redirect('/cuenta');
 
   return (
     <div className="min-h-screen">
