@@ -31,19 +31,19 @@ export default async function SubscriberDetail({
       </a>
       <h2 className="text-xl font-heading">Suscriptor: {subscriber.name ?? '—'}</h2>
 
-      <dl className="grid grid-cols-2 gap-y-2 text-sm">
-        <dt className="text-portal-text/60">Email</dt>
-        <dd>{subscriber.email}</dd>
-        <dt className="text-portal-text/60">Instagram</dt>
-        <dd>{subscriber.instagramHandle ?? '—'}</dd>
-        <dt className="text-portal-text/60">Fecha de nacimiento</dt>
-        <dd>{subscriber.dateOfBirth ?? '—'}</dd>
-        <dt className="text-portal-text/60">Teléfono</dt>
-        <dd>{subscriber.phone ?? '—'}</dd>
-        <dt className="text-portal-text/60">Zona horaria</dt>
-        <dd>{subscriber.timezone}</dd>
-        <dt className="text-portal-text/60">Notas (de la persona)</dt>
-        <dd className="whitespace-pre-wrap">{subscriber.notesFromSubscriber ?? '—'}</dd>
+      <dl className="grid grid-cols-2 gap-y-4 text-base">
+        <dt className="text-portal-text/60 py-1">Email</dt>
+        <dd className="py-1">{subscriber.email}</dd>
+        <dt className="text-portal-text/60 py-1">Instagram</dt>
+        <dd className="py-1">{subscriber.instagramHandle ?? '—'}</dd>
+        <dt className="text-portal-text/60 py-1">Fecha de nacimiento</dt>
+        <dd className="py-1">{subscriber.dateOfBirth ?? '—'}</dd>
+        <dt className="text-portal-text/60 py-1">Teléfono</dt>
+        <dd className="py-1">{subscriber.phone ?? '—'}</dd>
+        <dt className="text-portal-text/60 py-1">Zona horaria</dt>
+        <dd className="py-1">{subscriber.timezone}</dd>
+        <dt className="text-portal-text/60 py-1">Notas (de la persona)</dt>
+        <dd className="py-1 whitespace-pre-wrap">{subscriber.notesFromSubscriber ?? '—'}</dd>
       </dl>
 
       {sub ? (
