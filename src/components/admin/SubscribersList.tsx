@@ -23,6 +23,7 @@ export default function SubscribersList({ rows }: { rows: Row[] }) {
           <th className="pb-2">Fecha inicio</th>
           <th className="pb-2">Sesiones</th>
           <th className="pb-2">Status</th>
+          <th className="pb-2">Detalle</th>
         </tr>
       </thead>
       <tbody>
@@ -39,6 +40,14 @@ export default function SubscribersList({ rows }: { rows: Row[] }) {
             <td>
               {r.status}
               {r.cancelAtPeriodEnd ? ' (cancela)' : ''}
+            </td>
+            <td>
+              <Link
+                href={`/admin/${r.subscriberId}`}
+                className="underline text-portal-text/80 hover:text-portal-text"
+              >
+                Ver detalle →
+              </Link>
             </td>
           </tr>
         ))}
