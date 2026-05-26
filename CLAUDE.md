@@ -57,3 +57,17 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
 - Bloquea `rm -rf` con paths absolutos fuera del repo
 - Bloquea `git push --force`
 - Bloquea clears de archivos visuales/config críticos
+
+
+- `npx tsc --noEmit` con exit 0 es contract obligatorio al cierre 
+     de cada gate. Cubre tests/ donde vitest no hace strict TS check 
+     y next build no llega.
+   
+   - Empirical-first aplica a CUALQUIER afirmación técnica verificable 
+     en <5min con scratch script: as any, SQL casts, library 
+     workarounds, "X es necesario porque Y". Si no verificaste, no 
+     lo afirmes — escribilo como suposición explícita.
+   
+   - Commit bodies con caracteres especiales (backticks, $, comillas) 
+     → siempre `git commit -F file`, NUNCA heredoc. Shell escape 
+     defensivo en heredoc quoted persiste literal en el commit.

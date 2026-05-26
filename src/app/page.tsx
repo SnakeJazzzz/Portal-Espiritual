@@ -2,6 +2,7 @@ import StarField from '@/components/StarField';
 import Hero from '@/components/Hero';
 import AboutMe from '@/components/AboutMe';
 import Footer from '@/components/Footer';
+import MentoriaHomeSection from '@/components/MentoriaHomeSection';
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="relative z-10">
         <Hero />
+        <MentoriaHomeSection />
         <AboutMe />
       </main>
 

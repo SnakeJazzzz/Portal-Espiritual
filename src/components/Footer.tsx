@@ -26,8 +26,21 @@ export default function Footer() {
 
       {/* Copyright */}
       <p className="text-xs text-white/25 mt-6">
-        © {new Date().getFullYear()} Portal Espiritual. Todos los derechos reservados.
+        © {new Date().getFullYear()} Portal Espiritual. Todos los derechos reservados. ·{' '}
+        <a href="/privacidad" className="hover:text-white/60 transition-colors">
+          Aviso de privacidad
+        </a>
       </p>
+
+      {/* Admin entry — discrete, JP-targeted (D-10.9-2) */}
+      <div className="text-right mt-4">
+        <a
+          href="/login"
+          className="text-xs text-portal-text/60 hover:text-portal-text/80 transition-colors"
+        >
+          Admin
+        </a>
+      </div>
     </footer>
   );
 }

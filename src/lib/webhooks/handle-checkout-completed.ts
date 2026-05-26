@@ -1,0 +1,159 @@
+import type Stripe from 'stripe';
+import { db } from '@/db/client';
+import { subscribers, subscriptions, products } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { stripe } from '@/lib/stripe';
+import { createAuthToken } from '@/lib/auth-tokens';
+import {
+  sendWelcomeEmail,
+  sendRaceConditionEmail,
+  sendDuplicateSubscriptionEmail,
+} from '@/lib/email';
+import { getEnv } from '@/lib/env';
+import { insertSubscriptionIfCapacity } from '@/lib/capacity';
+import { appendAudit } from '@/lib/audit';
+
+const env = getEnv();
+
+export async function handleCheckoutCompleted(event: Stripe.Event) {
+  const session = event.data.object as Stripe.Checkout.Session;
+  const email = (session.customer_details?.email ?? '').toLowerCase();
+  const stripeSubscriptionId = session.subscription as string;
+  const stripeCustomerId = session.customer as string;
+  const paymentIntentId = session.payment_intent as string | null;
+  if (!email || !stripeSubscriptionId) throw new Error('checkout session missing email or subscription');
+
+  // POST-BASIL: as of Stripe API 2025-03-31, current_period_start/end live on
+  // items.data[N], not on the Subscription object. Reading the old top-level
+  // path returns undefined → invalid Date. For mentoría's single-item recurring
+  // price, the period is on items.data[0].
+  const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const item = sub.items.data[0] as (typeof sub.items.data[0] & {
+    current_period_start: number;
+    current_period_end: number;
+  }) | undefined;
+  if (!item) throw new Error(`subscription ${sub.id} has no items`);
+  const currentPeriodStart = new Date(item.current_period_start * 1000);
+  const currentPeriodEnd = new Date(item.current_period_end * 1000);
+
+  // 1. Upsert subscriber by email. CRITICAL: preserve any existing
+  // stripeCustomerId — never overwrite. A second checkout that reuses an
+  // existing email (anonymous flow without a session, or a future
+  // re-subscription path) must not redirect the legitimate subscriber's
+  // Stripe customer to a different Stripe account. Mismatch is logged for
+  // telemetry; the upsert still completes so the subscription insert can
+  // proceed (the mismatch is operational, not a hard error).
+  //
+  // The SELECT + UPDATE/INSERT pair is wrapped in db.transaction to
+  // serialize on the subscriber row across concurrent webhooks for the
+  // same email. External calls (Stripe API, Resend) stay outside the tx
+  // per spec §13.2.
+  await db.transaction(async (tx) => {
+    const existing = await tx.query.subscribers.findFirst({
+      where: eq(subscribers.email, email),
+    });
+    if (existing) {
+      if (existing.stripeCustomerId && existing.stripeCustomerId !== stripeCustomerId) {
+        console.warn(
+          '[handle-checkout-completed] mismatched stripeCustomerId on upsert, keeping existing',
+          {
+            eventId: event.id,
+            email: existing.email,
+            existingStripeCustomerId: existing.stripeCustomerId,
+            incomingStripeCustomerId: session.customer,
+            incomingSubscriptionId: session.subscription,
+          },
+        );
+      }
+      // Single UPDATE handles all 3 sub-cases atomically:
+      //   - existing has cus + matches incoming      → no-op on cus, bump updatedAt
+      //   - existing has cus + differs from incoming → preserve existing (via ??), bump updatedAt
+      //   - existing has NO cus (edge backfill)      → fill from incoming, bump updatedAt
+      await tx.update(subscribers)
+        .set({
+          stripeCustomerId: existing.stripeCustomerId ?? stripeCustomerId,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscribers.id, existing.id));
+    } else {
+      await tx.insert(subscribers).values({ email, stripeCustomerId });
+    }
+  });
+  const sub_row = await db.query.subscribers.findFirst({ where: eq(subscribers.email, email) });
+  if (!sub_row) throw new Error('subscriber upsert disappeared');
+
+  // 2. Look up product (assume mentoría for now; S6 generalizes)
+  const product = await db.query.products.findFirst({ where: eq(products.slug, 'mentoria-1a1') });
+  if (!product) throw new Error('mentoria product not seeded');
+
+  // 3. Atomic capacity-aware insert — see insertSubscriptionIfCapacity
+  // for outcome semantics. Single-statement SQL prevents the race
+  // where two concurrent webhooks for the same stripe_subscription_id
+  // both pass a capacity check then both INSERT. The unique
+  // constraint on stripe_subscription_id serializes; only one wins.
+  const result = await insertSubscriptionIfCapacity({
+    subscriberId: sub_row.id,
+    productId: product.id,
+    stripeSubscriptionId,
+    currentPeriodStart,
+    currentPeriodEnd,
+  });
+
+  if (result.inserted) {
+    // Happy path: token + welcome email
+    const raw = await createAuthToken(sub_row.id, 'welcome');
+    const magicLinkUrl = `${env.APP_URL}/api/auth/verify?token=${raw}`;
+    const emailResult = await sendWelcomeEmail({
+      to: email,
+      magicLinkUrl,
+      idempotencyHeader: `${event.id}:welcome_email`,
+    });
+    await db.update(subscriptions)
+      .set({ welcomeEmailStatus: emailResult.error ? 'failed' : 'sent' })
+      .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
+    return;
+  }
+
+  // Refund path: both race + duplicate share the same Stripe-side mechanics.
+  // Cancel the Stripe-side subscription unconditionally — even if
+  // payment_intent is null (theoretical for mode='subscription',
+  // possible for future setup-mode products), we must not leave
+  // orphan Stripe subscriptions that continue billing without a
+  // matching DB row. Refund creation still depends on PI presence.
+  // Idempotency keys are scoped to event.id so retries of the same
+  // Stripe webhook delivery don't double-cancel or double-refund.
+  await stripe.subscriptions.cancel(
+    stripeSubscriptionId,
+    { invoice_now: false, prorate: false },
+    { idempotencyKey: `${event.id}:subscription_cancel` },
+  );
+  if (paymentIntentId) {
+    await stripe.refunds.create(
+      { payment_intent: paymentIntentId },
+      { idempotencyKey: `${event.id}:refund` },
+    );
+  } else {
+    console.warn(
+      '[handle-checkout-completed] refund path with null payment_intent',
+      { eventId: event.id, stripeSubscriptionId, reason: result.reason },
+    );
+  }
+
+  if (result.reason === 'capacity_full') {
+    await sendRaceConditionEmail({ to: email, idempotencyHeader: `${event.id}:race_email` });
+    await appendAudit({
+      adminId: null,
+      action: 'capacity_race_refund',
+      targetSubscriberId: sub_row.id,
+      after: { stripeSubscriptionId, paymentIntentId },
+    });
+  } else if (result.reason === 'duplicate_subscription') {
+    await sendDuplicateSubscriptionEmail({ to: email, idempotencyHeader: `${event.id}:duplicate_email` });
+    await appendAudit({
+      adminId: null,
+      action: 'duplicate_subscription_refund',
+      targetSubscriberId: sub_row.id,
+      after: { stripeSubscriptionId, paymentIntentId },
+    });
+  }
+}
