@@ -1,8 +1,8 @@
 # Phase 6 — Progreso de Ejecución
 
-**Última actualización:** 2026-05-25
+**Última actualización:** 2026-05-25 (pre-clear consolidation)
 **Branch:** `feature/phase-6-mentoria-spec`
-**Último commit:** `chore(s10): smoke round 1 fixes — login redirect by role + admin logout + affordance + cleanup` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
+**Último commit:** `chore(s10): pre-clear consolidation — runbook + progress + handoff for chat session reset` (hash variable — buscar por subject en `git log --oneline`; un commit no puede referenciarse a sí mismo por hash sin un follow-up commit)
 
 > Plan completo: `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`
 > Spec: `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
@@ -366,12 +366,53 @@ Nota operacional: tras este close-out, `npm test` corrido durante el cierre wipe
 4. Lista admin: descubrible la columna "Ver detalle →" en addition al name link (valida `587d816`)
 5. Readability del admin admin a 16px confortable en mobile + desktop (valida `acc64b9`)
 
+### S10 PRE-LAUNCH READY — code-complete, awaiting external (2026-05-25)
+
+Smoke round 2 validado end-to-end por user. Pre-flight checks (PARTE 0 del pre-clear consolidation) ejecutados y green. Estado: code-complete, ready for the 8-PASOS launch flow documented in the runbook.
+
+Pre-flight findings (PARTE 0):
+
+- **P0.1 — priceId location:** ya es env var `STRIPE_PRICE_ID_MENTORIA` (src/lib/env.ts:7), único usage en `src/app/api/checkout/create/route.ts:42`. Pre-launch-fix-1 SKIP (D-Pre-Clear-6).
+- **P0.2 — npm run build local:** CLEAN. Workaround necesario (caveat PROGRESS:313-314 caveat): `node --env-file=.env.local -e "require('child_process').execSync('npm run build', {stdio: 'inherit'})"` — bash sourcing falla por `&` chars en DATABASE_URL; --env-file rechazado por Next 16 workers. Vercel deploy no necesita el workaround (env vars set naturally en su environment).
+- **P0.3 — Env vars inventory:** 8 vars Zod required en producción (DATABASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ID_MENTORIA, RESEND_API_KEY, RESEND_FROM_EMAIL, APP_URL, ADMIN_SEED_EMAIL). **5 vars EXTRA en `.env.local` son DEAD** (NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, CLIENT_NOTIFICATION_EMAIL, DATABASE_URL_UNPOOLED, MAGIC_LINK_SECRET) — grep `src/` exit code 1 (no matches). NO van a Vercel prod (D-Pre-Clear-5). Cleanup `.env.local` deferred a 6.5.
+- **P0.4 — Prebuild hook:** SAFE. Solo corre `drizzle-kit migrate`. NO seed-admin, NO tests, NO scratch scripts. `seed-admin.ts` manual-only — sin hook automático que pisaría perfil de JP en deploys.
+- **P0.5 — Neon DATABASE_URL:** pooled endpoint US East 1 AWS, `sslmode=require` + `channel_binding=require`. Mismo string en `.env.local` y Vercel production (D-Pre-Clear-3: Neon main branch compartida, no separate test branch).
+
+Pendiente launch — **8 PASOS externos documentados en `docs/runbooks/phase-6-launch-checklist.md`** (secuencia Opción C híbrida):
+
+1. Stripe LIVE config completa en Dashboard (Customer Portal, Product, Webhook endpoint, Secret Key)
+2. Resend DNS verify (SPF/DKIM/DMARC)
+3. Pre-deploy local prep (cleanup script `scripts/scratch-pre-launch-cleanup.ts` + Vercel env vars TEST keys via CLI)
+4. Deploy main + smoke técnico (TEST keys, UI-only smoke, NO checkout)
+5. Flip a LIVE keys (vercel env rm + add las 3 Stripe vars + redeploy)
+6. Validar webhook LIVE sin pagar (Send test webhook → expected 200 OK)
+7. $1 MXN test charge LIVE end-to-end (real card, JP refunds)
+8. Tag phase-6-launched + announce
+
+Decisiones cerradas pre-clear consolidation:
+
+- **D-Pre-Clear-1** — Secuencia Opción C híbrida (Stripe LIVE config primero, deploy con TEST keys, flip a LIVE, validar webhook sin pagar)
+- **D-Pre-Clear-2** — Vercel env vars via CLI `vercel env add` (no Dashboard UI; scriptable y auditable)
+- **D-Pre-Clear-3** — Neon main compartida (no separate branch; mismo connection string en .env.local y Vercel prod)
+- **D-Pre-Clear-4** — `RESEND_FROM_EMAIL = hola@portalespiritual.com.mx` hardcoded en runbook
+- **D-Pre-Clear-5** — 5 vars DEAD en .env.local DEFER a 6.5
+- **D-Pre-Clear-6** — priceId env var refactor SKIP (ya es env var)
+
+Artefactos creados en pre-clear consolidation:
+
+- `scripts/scratch-pre-launch-cleanup.ts` (NO committed, user lo ejecuta on-demand antes de PASO 4). Dry-run mode con `--dry-run` flag. Reporta counts pre/post de las 6 tablas afectadas + verifica preservación de products + waitlist + sanity asserts JP row preservada.
+- `docs/runbooks/phase-6-launch-checklist.md` (committed `08f51b6`) — 8 PASOS detallados + pre-requisitos + failure mitigation table + anchors cross-ref.
+- `docs/PROJECT_HANDOFF.md` (committed en este gate) — context continuity para chat sessions futuras.
+
+**Próximo paso del user:** ejecutar los 8 PASOS del runbook fuera del chat. Cuando JP comparta la URL en Instagram (post-PASO-8), Phase 6 está LIVE.
+
 ---
 
 ## Pendiente
 
-### S10 — Resto de Gate F (10.8b polish + 10.8d.* coord JP + LIVE smoke)
-Items que requieren coordinación con JP en vivo o setup externo: typography polish dashboard, LFPDPPP review legal, Stripe Customer Portal LIVE mode, DNS Resend re-verify, $1 MXN test charge LIVE, merge a main, tag. Ver close-out commit chore(s10) para checklist completa.
+### Phase 6 launch — Gate F externo (sole source of truth: docs/runbooks/phase-6-launch-checklist.md)
+
+8 PASOS externos a ejecutar por user + JP. Ver runbook para detalle completo, pre-requisitos, failure modes per PASO, post-launch monitoring, e items deferred a 6.5.
 
 ---
 
