@@ -1,6 +1,124 @@
 # Development Log - Portal Espiritual
 
-## Phase 6 — Slice 1: Foundation (DB + Env + Test Infra) - May 13, 2026
+## Phase 6 — LIVE Launch + Hotfix Cycle — May 26-27, 2026
+
+**Status:** Phase 6 (Mentoría 1-a-1) launched to production. Tag
+`phase-6-launched` applied 2026-05-27. Full subscriber flow + admin panel
+functional with LIVE Stripe keys, LIVE Resend, real $2,222 MXN/mes
+price active.
+
+### Summary
+
+After S10 code-complete (May 25), executed the launch sequence over
+2026-05-26 and 2026-05-27. Initial $10 MXN temporary-price smoke
+surfaced three bugs that required a hotfix branch (`hotfix/admin-ux-and-security`,
+PR #1) before reverting to the real price and tagging launch. Post-launch
+manual smoke a/b/c/d/e completed green on production.
+
+### What was built/changed during the launch window
+
+- **Stripe LIVE config in Dashboard:** Product `prod_UaL3x5TrS6pv6B`, price
+  `price_1TbANALoQFUZpragoscEMVVK` ($2,222 MXN/mes), webhook destination
+  `we_1TbAtKLoQFUZprag5melpCZk` (6 events suscritos, API version
+  `2026-02-25.clover`), Customer Portal next-gen ON.
+- **Vercel env flip:** STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and
+  STRIPE_PRICE_ID_MENTORIA swapped from TEST to LIVE values in Production
+  scope.
+- **Hotfix PR #1 (5 commits, fast-forward push, no force needed):**
+  - `fix(admin): show cancel-at-period-end status in admin views` —
+    amber pill in `/admin` lista + "Acceso termina: DD/MM/YYYY" in detail
+    when canceling. Minimum-surface, no helper extraction.
+  - `fix(security): validate UUID params before db queries` — guard
+    `if (!isValidUuid(id)) notFound()` in `/admin/[id]`. New `src/lib/uuid.ts`
+    + 10 unit tests + 6 integration tests (includes stderr-noise assertion
+    that locks out the postgres `22P02` regression).
+  - `fix(admin): refresh UI after admin actions` — optimistic DB write
+    in cancel route + fail-closed semantics (Stripe OK + DB fail → 500 +
+    Spanish message + `audit_log` entry with `admin.id`). `router.refresh()`
+    in all 3 admin buttons replacing `window.location.reload()`/nothing.
+  - `docs(superpowers): plan for 2026-05-26 hotfix admin UX + security`.
+  - `chore: gitignore superpowers worktree artifacts`.
+- **Tests:** baseline 12 files / 32 tests at S10 → 15 files / 51 tests post-hotfix.
+- **Post-launch cleanup:** $10 temp price archived in Stripe (not deleted),
+  2 smoke subs canceled+refunded, DB state clean (3 subscribers: JP admin +
+  2 canceled-historical; 2 canceled subscriptions).
+
+### Bugs surfaced + fixed during LIVE smoke
+
+1. **Webhook destination URL** configured with apex domain
+   (`portalespiritual.com.mx`) instead of `www.portalespiritual.com.mx`.
+   Caused 307 redirects on ALL webhooks → events received 200 OK from the
+   redirect endpoint but the actual handler never ran. Fix: changed URL in
+   Stripe Dashboard to the canonical `www` subdomain.
+2. **Admin status display** didn't visually differentiate
+   `cancelAtPeriodEnd=true` rows — JP couldn't scan canceling subs at a
+   glance. The display string `(cancela)` was present but JP needed visual
+   affordance. → amber pill in commit 1 of hotfix.
+3. **Path-traversal / UUID validation** — bot scan of `GET /admin/.env`
+   crashed the route with postgres `22P02 invalid input syntax for type uuid`.
+   No data leaked (auth redirected before render) but the crash was an
+   unguarded foot-gun. → UUID guard in commit 2 of hotfix.
+4. **UI refresh** required 2 clicks post-cancel because the route called
+   only Stripe and waited for the `customer.subscription.updated` webhook
+   to flip the DB. → optimistic DB write + `router.refresh()` in commit 3
+   of hotfix.
+
+### Technical decisions taken during the cycle
+
+- **Fail-closed on optimistic write:** when Stripe succeeds but the local
+  DB write throws, return HTTP 500 + Spanish user-facing message + write
+  an `audit_log` row with `admin.id` (matching the existing pattern in
+  `admin-sessions-remaining.test.ts`: seed admin row with fixed UUID
+  `00000000-0000-0000-0000-000000000abc` + match the `requireAdmin` mock,
+  so the audit FK `admin_id → subscribers.id` resolves cleanly in tests).
+- **Stripe still source of truth:** the optimistic write is a UI-latency
+  mitigation, not a state authority change. Webhook stays idempotent
+  (will overwrite with the same value).
+- **3-commit hotfix branch with subagent-driven execution:** each fix in
+  its own commit, fast-forward push (no force needed since only adding
+  commits, no history rewrite). Worked well — 5 final commits on the
+  branch including docs + chore. PR review per-Gate via diff pause.
+
+### Recoverable incidents
+
+- **Two destructive-TRUNCATE incidents** during the hotfix cycle. Tests
+  ran against `.env.local`, which still points at the production Neon
+  branch (DATABASE_URL_TEST split was deferred to Phase 6.5). The
+  `beforeEach` in `tests/integration/setup.ts` truncated production state.
+  Recovered both times via re-seeding JP admin row + resending Stripe
+  webhooks for the affected subscriptions. The `ALLOW_DESTRUCTIVE_TESTS=true`
+  gate landed pre-launch is a tripwire, not a guarantee — it catches the
+  accidental invocation but not the gated-then-still-on-prod one.
+  → Standing rule added to repo `CLAUDE.md` ("NEVER run vitest against
+  .env.local if it points to production Neon"). Permanent fix is
+  Phase 6.5 backlog HIGH/data-integrity item #1.
+
+### Lessons learned
+
+- **Never trust TEST-keys-only deploy as proof that LIVE keys work.** The
+  webhook-URL apex-vs-www bug only surfaced with LIVE keys because
+  TEST-mode webhook destinations were a different endpoint (no apex
+  redirect issue). The cheap-$10-temp-price smoke (which the user did
+  before the real revert) caught it; it would have been caught earlier
+  with a LIVE-keys-end-to-end smoke as part of the launch sequence.
+- **Plan TypeScript snippets need to be compiled before plan-approval.**
+  The hotfix plan's test snippet used `let stderrSpy: ReturnType<typeof vi.spyOn>`
+  which doesn't resolve overloads under strict TS. Subagent had to deviate
+  idiomatically (extract `makeStderrSpy()` helper + use `vi.mocked(notFound)`
+  instead of cast). The deviation was correct but the plan should have
+  caught the issue pre-execution.
+- **Worktree branches accumulate filesystem artifacts.** Each subagent
+  dispatch in subagent-driven-development created a `.claude/worktrees/agent-<id>/`
+  directory that survived the merge. Add to `.gitignore` (done in PR #1)
+  and prune+rm after feature lands.
+- **Pause-at-Gates for human-review-of-diff was the right call.** Caught
+  one in-scope but architecturally significant deviation (the implementer's
+  `adminId: null` workaround for the test FK constraint) that I would
+  have missed under a "trust the implementer" continuous flow.
+
+---
+
+
 
 **Status:** IN PROGRESS (Slice 1 of 7 complete)
 
