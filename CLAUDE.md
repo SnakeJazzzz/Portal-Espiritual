@@ -59,15 +59,42 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
 - Bloquea clears de archivos visuales/config críticos
 
 
-- `npx tsc --noEmit` con exit 0 es contract obligatorio al cierre 
-     de cada gate. Cubre tests/ donde vitest no hace strict TS check 
+- `npx tsc --noEmit` con exit 0 es contract obligatorio al cierre
+     de cada gate. Cubre tests/ donde vitest no hace strict TS check
      y next build no llega.
-   
-   - Empirical-first aplica a CUALQUIER afirmación técnica verificable 
-     en <5min con scratch script: as any, SQL casts, library 
-     workarounds, "X es necesario porque Y". Si no verificaste, no 
+
+   - Empirical-first aplica a CUALQUIER afirmación técnica verificable
+     en <5min con scratch script: as any, SQL casts, library
+     workarounds, "X es necesario porque Y". Si no verificaste, no
      lo afirmes — escribilo como suposición explícita.
-   
-   - Commit bodies con caracteres especiales (backticks, $, comillas) 
-     → siempre `git commit -F file`, NUNCA heredoc. Shell escape 
+
+   - Commit bodies con caracteres especiales (backticks, $, comillas)
+     → siempre `git commit -F file`, NUNCA heredoc. Shell escape
      defensivo en heredoc quoted persiste literal en el commit.
+
+   - **NEVER run vitest contra `.env.local` si apunta al Neon branch
+     de producción.** Verificá `DATABASE_URL` (`echo $DATABASE_URL`
+     o inspeccionando el archivo) antes de cualquier comando que
+     dispare `tests/integration/setup.ts` — el `beforeEach` ahí
+     ejecuta `TRUNCATE` sobre 8 tablas. El gate
+     `ALLOW_DESTRUCTIVE_TESTS=true` es tripwire, no garantía. Hasta
+     que aterrice DATABASE_URL_TEST (Phase 6.5 HIGH/DI-1), esta regla
+     es vinculante. Ya hubo 2 incidentes de truncate de prod
+     recuperables durante el ciclo de hotfix 2026-05-26/27.
+
+   - **Path patterns con corchetes necesitan single-quote en zsh.**
+     `git add 'src/app/admin/[id]/page.tsx'` — sin las comillas, zsh
+     glob-expande `[id]` y falla con "no matches found". Aplica a
+     cualquier comando que toque rutas dinámicas de Next.js o
+     archivos con `[...]` en el nombre.
+
+   - **Post-feature filesystem hygiene:** después de mergear a `main`
+     una feature que usó `/superpowers:subagent-driven-development`,
+     limpiar los worktrees:
+     ```bash
+     git worktree prune
+     rm -rf .claude/worktrees/
+     ```
+     Los worktrees están en `.gitignore` pero acumulan en filesystem
+     local + en `git branch` output. La limpieza es parte del
+     feature-completion checklist.
