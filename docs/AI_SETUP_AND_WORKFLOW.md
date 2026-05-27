@@ -73,7 +73,9 @@ proyecto.
 
 ## Cómo se trabaja: el workflow
 
-Basado en `AI_DEVELOPMENT_WORKFLOW.md` (anterior al setup). Las fases:
+Detalle completo en `AI_DEVELOPMENT_WORKFLOW.md` (ping-pong pattern,
+Superpowers commands, patterns que funcionaron y no en Phase 6). Resumen
+de las fases:
 
 ### A. Setup
 Done. Este documento.
@@ -142,11 +144,6 @@ repetidos merecen skill nueva.
 ### Branches con vida útil
 
 - Una feature = una branch. Borrar al merge.
-- `chore/ai-workflow-setup` ya fue mergeada y debe borrarse:
-  ```bash
-  git branch -D chore/ai-workflow-setup
-  git push origin --delete chore/ai-workflow-setup
-  ```
 
 ### Vercel y producción
 
@@ -210,6 +207,6 @@ recuperar de un mal merge, etc., el developer es quien tiene los privilegios.
 2. `npm install`
 3. `cp .env.example .env.local` (cuando exista) y pedir secretos al maintainer
 4. Verificar `claude --version` y `claude mcp list`
-5. Leer este documento + `CLAUDE.md` + `AI_DEVELOPMENT_WORKFLOW.md`
+5. Leer este documento + `CLAUDE.md` + `AI_DEVELOPMENT_WORKFLOW.md` + `SYSTEM_STATUS.md`
 6. Abrir Claude Code desde la raíz del repo y `/hooks` para confirmar
    los 5 hooks están cargados

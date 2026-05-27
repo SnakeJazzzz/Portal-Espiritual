@@ -4,13 +4,18 @@ Documento autocontenido para que cualquier chat futuro de Claude (Claude.ai o Cl
 
 ---
 
-## Estado actual (2026-05-25)
+## Estado actual (2026-05-27, post-launch)
 
-- **Phase 6 S10 code-complete**, 32/32 tests PASS, tsc clean, build clean
-- **Smoke round 1 + round 2** end-to-end verde (validados por user en mobile 375px + desktop)
-- **Launch path:** 8 PASOS documentados en `docs/runbooks/phase-6-launch-checklist.md` (sole source of truth para el flow externo)
-- **Branch:** `feature/phase-6-mentoria-spec` (NO mergeado a main todavía)
-- **Próxima acción:** user ejecuta los 8 PASOS del runbook fuera del chat → tag `phase-6-launched`
+- **Phase 6 LIVE en producción.** Tag `phase-6-launched` aplicado.
+  Mentoría 1-a-1 funcionando con Stripe LIVE + Resend domain verified +
+  Customer Portal next-gen ON.
+- **Hotfix PR #1 merged** (admin UX + UUID validation + optimistic
+  DB write fail-closed) — surfaced del LIVE smoke 2026-05-26.
+- **Tests:** 15 test files / 51 tests PASS, tsc clean, build clean en main.
+- **DB state:** 3 subscribers (JP admin + 2 historical canceled), 2
+  canceled subscriptions (smoke history). Producto seeded + activo.
+- **Próxima acción:** Phase 6.5 — post-launch polish + tech debt. Backlog
+  en `PHASE_6_5_BACKLOG.md`. Sin compromiso de fecha.
 
 ---
 
@@ -49,13 +54,15 @@ Pegá literal:
 ```
 Trabajamos en Portal Espiritual. Project knowledge cargado:
 PROJECT_CONTEXT, ARCHITECTURE_AND_ROADMAP, AI_DEVELOPMENT_WORKFLOW,
-spec v3, plan v2. PHASE_6_PROGRESS y PROJECT_HANDOFF.md contienen
-estado actual + workflow vigente.
+SYSTEM_STATUS, PHASE_6_5_BACKLOG, PROJECT_HANDOFF.
 
-Estamos en: <pegar resumen 1-2 líneas del estado del momento>
+Estado: Phase 6 LIVE (tag phase-6-launched). Trabajando en:
+<pegar resumen 1-2 líneas del estado del momento>
 ```
 
-Sparring chat normalmente arma prompts cerrados para Claude Code post-discusión. Patrón ping-pong heredado de S6-S9.
+Sparring chat normalmente arma prompts cerrados para Claude Code
+post-discusión. Patrón ping-pong heredado de S6-S9. Documentado en
+`AI_DEVELOPMENT_WORKFLOW.md`.
 
 ---
 
@@ -68,11 +75,16 @@ Sparring chat normalmente arma prompts cerrados para Claude Code post-discusión
 Después decir literal:
 
 ```
-Leé docs/PHASE_6_PROGRESS.md y docs/PROJECT_HANDOFF.md para contexto.
-Estamos en: <pegar resumen 1-2 líneas>
+Leé docs/SYSTEM_STATUS.md, docs/PHASE_6_5_BACKLOG.md y
+docs/PROJECT_HANDOFF.md para contexto.
+
+Trabajando en: <pegar resumen 1-2 líneas>
 ```
 
-PHASE_6_PROGRESS tiene history completo de S1-S10 + decisiones aplicadas + items deferred. HANDOFF (este doc) tiene workflow + anchors. Combined, son suficiente para que un chat nuevo retome.
+SYSTEM_STATUS captura el snapshot operacional del sistema LIVE.
+PHASE_6_5_BACKLOG tiene los 12 amendments priorizados del launch.
+HANDOFF (este doc) tiene workflow + anchors. Combined, suficiente
+para que un chat nuevo retome sin re-explicar.
 
 ---
 
@@ -80,16 +92,23 @@ PHASE_6_PROGRESS tiene history completo de S1-S10 + decisiones aplicadas + items
 
 | Tipo | Path |
 |---|---|
-| Plan completo Phase 6 | `docs/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md` |
-| Spec v3 Phase 6 | `docs/superpowers/specs/2026-05-12-phase-6-mentoria-design.md` |
-| Progress histórico | `docs/PHASE_6_PROGRESS.md` |
-| Launch runbook (8 PASOS) | `docs/runbooks/phase-6-launch-checklist.md` |
-| Refund bug runbook | `docs/runbooks/refund-reversal-bug-s7-edge-1-b.md` |
-| DEVLOG histórico | `docs/DEVLOG.md` |
-| Stripe Customer Portal config | `docs/stripe-customer-portal-config.md` |
+| Snapshot LIVE | `docs/SYSTEM_STATUS.md` |
+| Backlog post-launch | `docs/PHASE_6_5_BACKLOG.md` |
+| Stack + estado de alto nivel | `docs/PROJECT_CONTEXT.md` |
+| Arquitectura + roadmap | `docs/ARCHITECTURE_AND_ROADMAP.md` |
+| Workflow de desarrollo | `docs/AI_DEVELOPMENT_WORKFLOW.md` |
+| Setup + recovery operacional | `docs/AI_SETUP_AND_WORKFLOW.md` |
+| DEVLOG (newest-on-top) | `docs/DEVLOG.md` |
+| Refund-reversal runbook | `docs/runbooks/refund-reversal-bug-s7-edge-1-b.md` |
+| Stripe Customer Portal config | `docs/runbooks/stripe-customer-portal-config.md` |
 | Project handoff (este doc) | `docs/PROJECT_HANDOFF.md` |
 | Standing rules globales | `~/.claude/CLAUDE.md` |
 | CLAUDE.md proyecto | `CLAUDE.md` |
+| Plan Phase 6 (archivado) | `docs/archive/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md` |
+| Plan hotfix (archivado) | `docs/archive/superpowers/plans/2026-05-26-hotfix-admin-ux-and-security.md` |
+| Spec Phase 6 (archivado) | `docs/archive/superpowers/specs/2026-05-12-phase-6-mentoria-design.md` |
+| Progress histórico S1-S10 (archivado) | `docs/archive/PHASE_6_PROGRESS.md` |
+| Launch runbook (archivado) | `docs/archive/runbooks/phase-6-launch-checklist.md` |
 
 ---
 
@@ -131,11 +150,11 @@ npx tsc --noEmit
 | Phase | Status |
 |---|---|
 | 1-5 | Pre-Phase-6 stack (services, divinations, etc.) — live |
-| 6 (Mentoría) | S1-S10 code-complete, awaiting 8-step launch externo |
-| 6.5 (post-launch polish) | Backlog acumulado (DATABASE_URL_TEST split, H2 log-out-all-devices, dev quirks, polish, etc.) |
+| 6 (Mentoría) | **LIVE in production** (tag `phase-6-launched`, 2026-05-27) |
+| 6.5 (post-launch polish) | Backlog priorizado en `PHASE_6_5_BACKLOG.md` (12 items, HIGH/MEDIUM/LOW) |
 | 7 (Cursos) | Not started |
 | 8 (Meditaciones) | Not started |
 
 ---
 
-**Última actualización:** 2026-05-25 (pre-clear consolidation, S10 PRE-LAUNCH READY)
+**Última actualización:** 2026-05-27 (post-launch docs cleanup)

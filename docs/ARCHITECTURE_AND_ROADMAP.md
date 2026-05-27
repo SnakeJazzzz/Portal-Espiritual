@@ -19,39 +19,49 @@ Portal Espiritual es una landing page de servicios espirituales del cliente
 Juan Pablo (guía espiritual). En producción en `portalespiritual.com.mx` via
 Vercel, auto-deploy desde `main`.
 
-### Estado actual (Phases 1-5, en producción)
+### Estado actual (Phases 1-6, en producción)
 
-Cuatro servicios pagados y agendados vía Cal.com:
+**Phases 1-5** — cuatro servicios one-shot pagados y agendados vía Cal.com:
 
 - Divinación de Cartas (30 min, $555 MXN)
 - Divinación Akáshica (45 min, $666 MXN)
 - Divinación Clásica (60 min, $888 MXN)
 - Activación Cuántica (60 min, $1111 MXN)
 
-Stack actual: Next.js 16 + React 19 + Tailwind v4. Site estático. Booking
-delegado a Cal.com embed.
-
-### Lo que viene: Phase 6 — Mentoría 1-a-1
-
-Servicio nuevo con modelo de negocio distinto: **suscripción mensual recurrente**.
+**Phase 6 — Mentoría 1-a-1** (LIVE desde 2026-05-27, tag `phase-6-launched`)
+— suscripción mensual recurrente:
 
 - Precio: $2222 MXN/mes
-- Capacidad: 8 spots máximo
-- Incluye (según copy del cliente): 2 sesiones privadas de 30 min al mes,
-  acceso a mensajes directos por Instagram, plan personalizado de desarrollo
-- Pago: Stripe Subscriptions (NO Cal.com)
-- Autenticación de suscriptores: magic link via email
-- Cuando se llenan los 8 spots: el botón muestra "Cupo lleno, regresa pronto".
-  Sin waitlist automatizada.
+- Capacidad: 8 spots máximo (read-only counter en `/mentoria`)
+- Incluye: 2 sesiones privadas de 30 min al mes, acceso a mensajes directos
+  por Instagram, plan personalizado de desarrollo
+- Pago: Stripe Subscriptions (NO Cal.com), checkout hosted, webhook destination
+  `we_1TbAtKLoQFUZprag5melpCZk` en LIVE (URL canónica:
+  `https://www.portalespiritual.com.mx/api/webhooks/stripe` — el subdomain
+  `www` es required; el apex causa 307 redirects)
+- Autenticación de suscriptores: magic link via email (Resend, dominio verificado)
+- Customer Portal de Stripe activo (next-gen, cancel end-of-period, no
+  immediate-cancel)
+- Admin panel mínimo en `/admin` (lista, edición de sesiones-restantes,
+  cancel, resend welcome)
+- Cuando se llenan los 8 spots: el botón muestra "Cupo lleno, regresa
+  pronto". Sin waitlist automatizada.
+
+Stack runtime actual: Next.js 16 + React 19 + Tailwind v4 + Drizzle ORM +
+Neon serverless Postgres + Stripe SDK 17 + Resend.
+
+Para el snapshot operacional completo del sistema LIVE (env vars, schema,
+routes activas, etc.) ver `SYSTEM_STATUS.md`.
 
 ### Lo que viene después (visión, no compromiso)
 
+- **Phase 6.5**: post-launch polish + tech debt (ver `PHASE_6_5_BACKLOG.md`)
 - **Phase 7**: Cursos pre-grabados
 - **Phase 8**: Meditaciones guiadas
 - **Phase 9**: Comunidad interna
 
 Todas estas phases comparten el mismo modelo: contenido digital con acceso
-controlado por suscripción o compra. Phase 6 sienta la base de
+controlado por suscripción o compra. Phase 6 ya estableció la base de
 **autenticación + control de acceso + cobros recurrentes** que las demás
 heredarán.
 
@@ -321,28 +331,31 @@ exactamente lo que el principio 3 ("schema genérico") busca.
 
 ---
 
-## 8. Estructura de carpetas (estado actual y dónde crece)
+## 8. Estructura de carpetas (estado actual post-Phase-6)
 
 ```
 src/
 ├── app/
 │   ├── layout.tsx              # Root layout + fonts
-│   ├── page.tsx                # Home (existente)
+│   ├── page.tsx                # Home (Phases 1-5)
 │   ├── globals.css             # Tailwind theme + animations
-│   ├── privacidad/             # Phase 6 (nuevo): aviso de privacidad
-│   ├── mentoria/               # Phase 6 (nuevo): landing del servicio
-│   ├── cuenta/                 # Phase 6 (nuevo): panel del suscriptor
-│   ├── admin/                  # Phase 6 (nuevo): panel admin
-│   └── api/                    # Phase 6 (nuevo): webhooks, auth, etc.
-├── components/                 # Componentes existentes + nuevos de Phase 6
+│   ├── privacidad/             # Phase 6: aviso de privacidad (LFPDPPP)
+│   ├── mentoria/               # Phase 6: landing del servicio
+│   ├── cuenta/                 # Phase 6: panel del suscriptor
+│   ├── admin/                  # Phase 6: panel admin
+│   │   └── [id]/               # Phase 6: detalle por suscriptor
+│   └── api/                    # Phase 6: webhooks, auth, billing-portal, admin
+├── components/                 # Phases 1-5 + admin/ subdir Phase 6
 ├── config/
-│   └── services.ts             # Single source para servicios actuales
-├── lib/                        # Phase 6 (nuevo): db, stripe, email, auth
-└── db/                         # Phase 6 (nuevo): schema, migrations
+│   ├── services.ts             # Single source para servicios Phases 1-5
+│   └── mentoria.ts             # Single source para Mentoría 1-a-1
+├── lib/                        # db client, stripe SDK, email, auth, audit, env
+├── db/
+│   ├── client.ts
+│   ├── schema.ts
+│   └── migrations/             # Drizzle-generated SQL
+└── middleware.ts               # Phase 6: session cookie + admin gate
 ```
-
-La estructura exacta de `lib/`, `db/`, y los nombres de archivos se decide
-en brainstorming + writing-plans.
 
 ---
 
@@ -374,17 +387,25 @@ conclusión del brainstorming.
 
 ---
 
-## 10. Estado actual del repo (al cierre del setup AI workflow + cuentas)
+## 10. Estado actual del repo (post-Phase-6 launch)
 
-- Branch `main`: setup AI workflow instalado (hooks + CLAUDE.md + MCPs +
-  Superpowers). Sitio en producción sin cambios funcionales desde Phases
-  1-5.
-- Cuentas externas configuradas:
-  - Stripe: test mode listo, producto "Mentoría 1-a-1" creado con price
-    recurrente mensual de $2222 MXN
-  - Resend: dominio `portalespiritual.com.mx` verificado, API key activa
-  - Neon: DB `portal-espiritual-db` creada vía Vercel Marketplace,
-    preview branching activo
-- `.env.local` completo con todas las vars necesarias para arrancar
-  desarrollo
+- Branch `main`: Phase 6 launched 2026-05-27, tag `phase-6-launched`.
+  Mentoría 1-a-1 live en production, full subscriber flow + admin panel
+  functional. Live smoke a/b/c/d/e completado verde.
+- Cuentas externas en LIVE:
+  - Stripe LIVE mode: producto Mentoría 1-a-1 (`prod_UaL3x5TrS6pv6B`),
+    price activo $2,222 MXN/mes (`price_1TbANALoQFUZpragoscEMVVK`),
+    webhook destination `we_1TbAtKLoQFUZprag5melpCZk` (URL canónica
+    `https://www.portalespiritual.com.mx/api/webhooks/stripe`,
+    6 events suscritos, API version `2026-02-25.clover`)
+  - Resend: dominio `portalespiritual.com.mx` verified, sender
+    `hola@portalespiritual.com.mx`
+  - Neon: DB `portal-espiritual-db` vía Vercel Marketplace. Branch
+    `main` único, compartido entre dev local + production (split a
+    `DATABASE_URL_TEST` deferred a Phase 6.5 — ver `PHASE_6_5_BACKLOG.md`
+    item HIGH/Data-integrity #1)
+- Vercel env vars: 8 vars Zod-validated en Production scope. Preview scope
+  no tiene mirrored vars (también Phase 6.5 backlog).
+- Para el snapshot operacional completo del sistema LIVE ver
+  `SYSTEM_STATUS.md`.
 - Pendiente: brainstorming → writing-plans → execution de Phase 6
