@@ -5,6 +5,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import SessionsRemainingEditor from '@/components/admin/SessionsRemainingEditor';
 import CancelSubscriptionButton from '@/components/admin/CancelSubscriptionButton';
 import ResendWelcomeButton from '@/components/admin/ResendWelcomeButton';
+import { isValidUuid } from '@/lib/uuid';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export default async function SubscriberDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!isValidUuid(id)) notFound();
   const subscriber = await db.query.subscribers.findFirst({ where: eq(subscribers.id, id) });
   if (!subscriber) notFound();
 
@@ -53,7 +55,11 @@ export default async function SubscriberDetail({
             Status: {sub.status}
             {sub.cancelAtPeriodEnd ? ' (cancela al fin del período)' : ''}
           </p>
-          <p>Próximo cobro: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          {sub.cancelAtPeriodEnd ? (
+            <p>Acceso termina: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          ) : (
+            <p>Próximo cobro: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          )}
           <p>Welcome email: {sub.welcomeEmailStatus}</p>
           <div className="flex items-center gap-3">
             <span>Sesiones restantes:</span>

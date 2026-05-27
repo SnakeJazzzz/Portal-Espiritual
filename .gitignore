@@ -44,3 +44,6 @@ next-env.d.ts
 
 scripts/login_url.ts
 .env*.local
+
+# superpowers worktree artifacts (subagent-driven-development creates these)
+.claude/worktrees/

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SessionsRemainingEditor({
   subscriptionId,
@@ -11,15 +12,17 @@ export default function SessionsRemainingEditor({
 }) {
   const [value, setValue] = useState(initial);
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   function save(newValue: number) {
     setValue(newValue);
     start(async () => {
-      await fetch('/api/admin/sessions-remaining', {
+      const r = await fetch('/api/admin/sessions-remaining', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subscriptionId, sessionsRemaining: newValue }),
       });
+      if (r.ok) router.refresh();
     });
   }
 
