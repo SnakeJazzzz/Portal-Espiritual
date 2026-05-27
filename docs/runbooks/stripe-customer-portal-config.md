@@ -1,5 +1,10 @@
 # Stripe Customer Portal — required configuration
 
+> **Status:** active. Configured in LIVE mode for Phase 6 launch (2026-05-27).
+> Customer Portal next-gen experience is ON. This runbook documents the
+> canonical settings so a re-apply (e.g. after a Stripe-side config drift) is
+> mechanical.
+
 In Stripe Dashboard → Settings → Billing → Customer portal:
 
 **Enable:**
@@ -17,7 +22,8 @@ In Stripe Dashboard → Settings → Billing → Customer portal:
 
 **Default return URL:** `https://portalespiritual.com.mx/cuenta`
 
-Activate the portal in **both** test mode and live mode separately.
+The portal is configured in **both** test mode and live mode (separately
+configurable). LIVE activation happened during the Phase 6 launch sequence.
 
 ## How users hit it
 
@@ -31,4 +37,5 @@ If the portal is NOT configured in Stripe Dashboard for the active mode (test or
 2. Toggle the items above per the lists.
 3. Save.
 4. From the Portal-Espiritual app: log in as a subscriber with an active subscription, click "Administrar pago / suscripción". Expect a redirect to a Stripe-hosted page showing payment method + cancel option (no "Cancel immediately" button).
-5. Repeat in live mode before production launch.
+5. Re-verify in live mode after any Stripe-side config drift, or after
+   API-version migrations of the Customer Portal.

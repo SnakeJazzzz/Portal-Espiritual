@@ -13,16 +13,20 @@
 Landing page mística de servicios espirituales del cliente Juan Pablo
 (guía espiritual). Producción en Vercel, auto-deploy desde `main`.
 
-Servicios actuales (Phase 1-5, ya en producción):
-- Divinación de Cartas (30 min, $555 MXN)
-- Divinación Akáshica (45 min, $666 MXN)
-- Divinación Clásica (60 min, $888 MXN)
-- Activación Cuántica (60 min, $1111 MXN)
+Servicios live en producción:
 
-Todos pagados y agendados vía Cal.com (`@calcom/embed-react`).
-
-Servicio nuevo (Phase 6, en planning):
-- Mentoría 1-a-1: suscripción mensual $2222 MXN, 8 spots máximo
+- **Phases 1-5** (one-shot, Cal.com booking):
+  - Divinación de Cartas (30 min, $555 MXN)
+  - Divinación Akáshica (45 min, $666 MXN)
+  - Divinación Clásica (60 min, $888 MXN)
+  - Activación Cuántica (60 min, $1111 MXN)
+- **Phase 6** (LIVE desde 2026-05-27, tag `phase-6-launched`):
+  - Mentoría 1-a-1: suscripción mensual $2,222 MXN, 8 spots máximo
+  - Stripe Subscriptions (LIVE keys, no Cal.com)
+  - Magic-link auth para subscribers (Resend, 15min login TTL / 7d welcome TTL)
+  - Customer Portal Stripe (cancel end-of-period, no immediate-cancel)
+  - Admin panel mínimo en `/admin` (lista, edición sesiones-restantes,
+    cancel, resend welcome)
 
 ---
 
@@ -36,7 +40,7 @@ Servicio nuevo (Phase 6, en planning):
 - **Hosting**: Vercel, auto-deploy desde `main`
 - **Repo**: https://github.com/SnakeJazzzz/Portal-Espiritual
 
-Stack a añadir en Phase 6:
+Stack agregado en Phase 6 (live):
 - **DB**: Neon Postgres (vía Vercel Marketplace) + Drizzle
 - **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma que Cal.com)
 - **Email transaccional**: Resend (cuenta del developer, dominio del cliente)
@@ -130,12 +134,15 @@ src/
 
 ---
 
-## Estado actual del repo (al cierre del setup AI workflow)
+## Estado actual del repo (post-Phase-6 launch)
 
-- Branch `main`: setup AI workflow instalado (hooks + CLAUDE.md + MCPs).
-  Sitio en producción sin cambios funcionales.
-- Última merge: `chore: install AI workflow harness`
-- Próxima feature: Phase 6 — Mentoría con suscripción mensual.
+- Branch `main`: Phase 6 launched 2026-05-27, tag `phase-6-launched`.
+  Mentoría 1-a-1 LIVE en producción.
+- Última merge significativa: `Merge hotfix: admin UX + security fixes
+  from LIVE smoke` (PR #1, 5 commits).
+- Próxima feature: **Phase 6.5** — post-launch polish + tech debt.
+  Backlog priorizado en `PHASE_6_5_BACKLOG.md`.
+- Snapshot operacional completo: `SYSTEM_STATUS.md`.
 
 ---
 

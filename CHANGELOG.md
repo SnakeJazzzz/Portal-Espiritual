@@ -1,11 +1,102 @@
 # Changelog
 
-All notable changes to the Portal Espiritual project will be documented in this file.
+All notable changes to the Portal Espiritual project. Newest entries on top.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Format note: Phase 1-5 entries below follow Keep-a-Changelog style with
+sub-headers (#### Added, #### Changed, etc.). Phase 6+ entries adopt a flat
+date+change format that fits better with the actual cadence (no SemVer
+release tags, no formal release boundaries — the project ships to
+production on `main` push). Both styles coexist; older entries left
+untouched for audit-trail preservation.
 
-## [Unreleased]
+---
+
+## 2026-05-27 — Phase 6 launched
+
+Tag `phase-6-launched` applied. Mentoría 1-a-1 service LIVE in production
+with Stripe LIVE keys, Resend domain verified, $2,222 MXN/mes recurring
+price active. Full subscriber flow (checkout → welcome email → magic-link
+auth → `/cuenta` panel → Customer Portal → cancel) + admin panel
+(`/admin` lista + `/admin/[id]` detail, sessions-remaining editor,
+cancel button, resend-welcome button) all functional. Manual smoke
+a/b/c/d/e green on production.
+
+---
+
+## 2026-05-27 — Hotfix merged (PR #1)
+
+Hotfix branch `hotfix/admin-ux-and-security` merged to `main`. Three
+bugs surfaced by the 2026-05-26 LIVE smoke:
+
+- `fix(admin): show cancel-at-period-end status in admin views` — amber
+  pill in `/admin` lista + "Acceso termina: DD/MM/YYYY" line in
+  `/admin/[id]` when canceling.
+- `fix(security): validate UUID params before db queries` — new
+  `src/lib/uuid.ts` + `if (!isValidUuid(id)) notFound()` guard in
+  `/admin/[id]`. Fixes the postgres `22P02` crash on path-traversal
+  probes (`GET /admin/.env`).
+- `fix(admin): refresh UI after admin actions` — optimistic DB write in
+  cancel route (Stripe stays source of truth; webhook idempotent),
+  fail-closed semantics on DB write failure (500 + Spanish message +
+  audit_log entry with admin.id), `router.refresh()` in all 3 admin
+  buttons.
+
+Plus 2 housekeeping commits (hotfix plan doc + .gitignore for
+superpowers worktree artifacts). Tests at HEAD: 15 files / 51 tests
+pass.
+
+---
+
+## 2026-05-26 — First LIVE smoke
+
+Initial production smoke with a temporary $10 MXN price. Surfaced the
+three bugs fixed in the hotfix above + a fourth (webhook destination
+URL set to apex domain `portalespiritual.com.mx` causing 307 redirects
+on every webhook delivery — Stripe registered 200 from the redirect
+endpoint, actual handler never ran). Webhook fix: changed destination
+URL to canonical `www.portalespiritual.com.mx`.
+
+Post-hotfix-merge, smoke re-run green. Price reverted to $2,222 MXN.
+Temporary $10 price archived in Stripe (not deleted, for audit trail).
+Two smoke subscriptions canceled+refunded from Stripe directly.
+
+---
+
+## 2026-05-13 to 2026-05-26 — Phase 6 implementation (S1-S10)
+
+Mentoría 1-a-1 subscription feature implemented in 10 vertical slices
+(S1-S10) on branch `feature/phase-6-mentoria-spec`, merged to main
+2026-05-26 as `Merge hotfix: tests TRUNCATE gate + UX nav fixes`.
+
+- **S1 Foundation:** Drizzle ORM + Neon serverless + Zod env schema +
+  vitest scaffold + `/api/health`.
+- **S2 Public page + checkout:** `/mentoria` landing + Stripe Hosted
+  Checkout + `/gracias` + capacity counter.
+- **S3 Webhooks:** idempotent webhook handler with `stripe_events`
+  table, 6 event types, commit-at-end semantics.
+- **S4 Auth tokens + welcome email:** SHA-256 hashed magic links via
+  Resend, 7-day welcome TTL.
+- **S5 Subscriber panel:** `/cuenta` with session cookie auth, profile
+  onboarding, status display.
+- **S6 Manage billing:** Stripe Customer Portal redirect from `/cuenta`.
+- **S7 Admin panel skeleton:** `/admin` lista + detail with
+  sessions-remaining editor + cancel button.
+- **S8 Login flow:** `/api/auth/login` POST with rate limiting +
+  15min-TTL login email.
+- **S9 Waitlist + privacy:** `/privacidad` page + waitlist append-only
+  table (LFPDPPP compliance).
+- **S10 Hardening:** rate limiting, audit_log table, resend-welcome
+  admin action, smoke fixes, pre-launch TRUNCATE-gate landing.
+
+Detailed slice-by-slice progress: `docs/archive/PHASE_6_PROGRESS.md`.
+Full implementation plan: `docs/archive/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`.
+
+---
+
+## [Unreleased] — Phases 1-5 (March 2026)
+
+Older entries below kept in Keep-a-Changelog format for audit-trail
+preservation.
 
 ### Phase 5 - Font Migration and Typography Refinements (March 5, 2026)
 
