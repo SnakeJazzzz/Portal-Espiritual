@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function ResendWelcomeButton({ subscriptionId }: { subscriptionId: string }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const router = useRouter();
 
   function onClick() {
     start(async () => {
@@ -15,6 +17,7 @@ export default function ResendWelcomeButton({ subscriptionId }: { subscriptionId
       });
       const body = await r.json();
       setMsg(r.ok ? `Estado: ${body.status}` : `Error: ${body.message ?? 'unknown'}`);
+      if (r.ok) router.refresh();
     });
   }
 

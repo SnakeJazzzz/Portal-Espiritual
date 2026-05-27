@@ -1,9 +1,11 @@
 'use client';
 
 import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function CancelSubscriptionButton({ subscriptionId }: { subscriptionId: string }) {
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   function onClick() {
     if (!confirm('¿Cancelar al final del período?')) return;
@@ -13,7 +15,18 @@ export default function CancelSubscriptionButton({ subscriptionId }: { subscript
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ subscriptionId }),
       });
-      if (r.ok) window.location.reload();
+      if (r.ok) {
+        router.refresh();
+        return;
+      }
+      let message = 'Error al cancelar la suscripción.';
+      try {
+        const body = await r.json();
+        if (typeof body?.message === 'string') message = body.message;
+      } catch {
+        // fall through to default message
+      }
+      alert(message);
     });
   }
 
