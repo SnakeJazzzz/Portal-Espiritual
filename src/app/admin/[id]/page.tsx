@@ -5,6 +5,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import SessionsRemainingEditor from '@/components/admin/SessionsRemainingEditor';
 import CancelSubscriptionButton from '@/components/admin/CancelSubscriptionButton';
 import ResendWelcomeButton from '@/components/admin/ResendWelcomeButton';
+import { isValidUuid } from '@/lib/uuid';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ export default async function SubscriberDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  if (!isValidUuid(id)) notFound();
   const subscriber = await db.query.subscribers.findFirst({ where: eq(subscribers.id, id) });
   if (!subscriber) notFound();
 
