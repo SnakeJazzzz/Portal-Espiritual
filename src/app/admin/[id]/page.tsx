@@ -53,7 +53,11 @@ export default async function SubscriberDetail({
             Status: {sub.status}
             {sub.cancelAtPeriodEnd ? ' (cancela al fin del período)' : ''}
           </p>
-          <p>Próximo cobro: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          {sub.cancelAtPeriodEnd ? (
+            <p>Acceso termina: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          ) : (
+            <p>Próximo cobro: {sub.currentPeriodEnd.toLocaleDateString('es-MX')}</p>
+          )}
           <p>Welcome email: {sub.welcomeEmailStatus}</p>
           <div className="flex items-center gap-3">
             <span>Sesiones restantes:</span>

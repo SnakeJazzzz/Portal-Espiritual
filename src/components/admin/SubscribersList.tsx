@@ -38,8 +38,13 @@ export default function SubscribersList({ rows }: { rows: Row[] }) {
             <td className="py-3 pr-3">{r.createdAt.toLocaleDateString('es-MX')}</td>
             <td className="py-3 pr-3">{r.sessionsRemaining}</td>
             <td className="py-3 pr-3">
-              {r.status}
-              {r.cancelAtPeriodEnd ? ' (cancela)' : ''}
+              {r.cancelAtPeriodEnd ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/40 px-2 py-0.5 text-sm">
+                  {r.status} (cancela)
+                </span>
+              ) : (
+                r.status
+              )}
             </td>
             <td className="py-3">
               <Link
