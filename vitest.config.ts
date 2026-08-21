@@ -6,7 +6,9 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     environment: 'node',
     testTimeout: 30_000,
-    setupFiles: ['tests/integration/setup.ts'],
+    // env-guard MUST come first: it validates DATABASE_URL_TEST and remaps
+    // DATABASE_URL onto it before setup.ts imports @/db/client.
+    setupFiles: ['tests/integration/env-guard.ts', 'tests/integration/setup.ts'],
     fileParallelism: false,
   },
   resolve: {
