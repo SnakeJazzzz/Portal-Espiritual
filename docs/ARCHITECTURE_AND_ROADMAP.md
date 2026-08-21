@@ -28,6 +28,12 @@ Vercel, auto-deploy desde `main`.
 - Divinación Clásica (60 min, $888 MXN)
 - Activación Cuántica (60 min, $1111 MXN)
 
+(Estado actual verificado contra `src/config/services.ts`. **Nota:** la
+Fase 1 del plan vigente — `docs/PLAN_CATALOGO_Y_SADHANA.md` — reduce este
+catálogo a un solo servicio "Divinación" con 3 variantes de duración
+15/30/60 min y promoción de lanzamiento; los demás servicios salen del
+catálogo público.)
+
 **Phase 6 — Mentoría 1-a-1** (LIVE desde 2026-05-27, tag `phase-6-launched`)
 — suscripción mensual recurrente:
 
@@ -53,12 +59,15 @@ Neon serverless Postgres + Stripe SDK 17 + Resend.
 Para el snapshot operacional completo del sistema LIVE (env vars, schema,
 routes activas, etc.) ver `SYSTEM_STATUS.md`.
 
-### Lo que viene después (visión, no compromiso)
+### Lo que viene después
 
+- **Fase 1 (catálogo Divinación)** — trabajo actual: ver
+  `docs/PLAN_CATALOGO_Y_SADHANA.md`
 - **Phase 6.5**: post-launch polish + tech debt (ver `PHASE_6_5_BACKLOG.md`)
-- **Phase 7**: Cursos pre-grabados
-- **Phase 8**: Meditaciones guiadas
-- **Phase 9**: Comunidad interna
+- **Phase 7 — Sadhana**: suscripción de contenido grabado (meditaciones,
+  cursos, audio/video). **Absorbe el alcance de la Phase 8 original**;
+  el detalle vive en `docs/PLAN_CATALOGO_Y_SADHANA.md` (Fase 2)
+- **Phase 9**: Comunidad interna (visión, no compromiso)
 
 Todas estas phases comparten el mismo modelo: contenido digital con acceso
 controlado por suscripción o compra. Phase 6 ya estableció la base de
@@ -123,10 +132,16 @@ viola.
 - **Validación**: Zod
 - **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma
   que Cal.com)
-- **Email transaccional**: Resend (cuenta del cliente, dominio verificado
-  `portalespiritual.com.mx`)
-- **Autenticación**: NextAuth con email provider (magic link). No
-  passwords, no OAuth en Phase 6.
+- **Email transaccional**: Resend — cuenta del cliente (JP), registrada
+  con `akasha.infinito8@gmail.com` (cuenta específica para Portal
+  Espiritual; login accesible en el perfil de Chrome de JP). Dominio
+  verificado `portalespiritual.com.mx`
+- **Autenticación**: magic link custom — tokens single-use hasheados
+  SHA-256 en DB (`src/lib/auth-tokens.ts`) + sesiones server-side con
+  cookie `pe_session` (`src/lib/auth.ts`, rutas
+  `src/app/api/auth/{login,verify,logout}`). Sin NextAuth (decisión del
+  spec `docs/archive/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`).
+  No passwords, no OAuth.
 
 ### Hosting (ya existe)
 
@@ -222,11 +237,15 @@ para el alcance exacto.
 
 ---
 
-## 6. Decisiones explícitamente abiertas (input al brainstorming)
+## 6. Decisiones D1–D21 (CERRADAS — registro histórico)
 
-Estas son las decisiones que NO se cierran aquí. El brainstorming debe
-producir respuesta concreta para cada una. Si encuentra más, las agrega a
-su propio spec.
+> **Estado: todas cerradas.** Estas 21 preguntas eran el input al
+> brainstorming de Phase 6 y se resolvieron en el spec
+> `docs/archive/superpowers/specs/2026-05-12-phase-6-mentoria-design.md`
+> (brainstorming del 2026-05-12) y su plan de implementación
+> (`docs/archive/superpowers/plans/2026-05-13-phase-6-mentoria-implementation.md`).
+> Se preservan sin editar como registro del framing original; NO son
+> preguntas abiertas.
 
 ### Sobre el modelo de datos
 
@@ -303,19 +322,15 @@ las cierren accidentalmente, no porque ya estén planeadas en detalle.
 Mejoras al panel admin basadas en uso real. Optimizaciones de performance.
 Refactor de cosas que en Phase 6 se hicieron "bien-suficiente".
 
-### Phase 7: Cursos pre-grabados
+### Phase 7: Sadhana (absorbe la Phase 8 original)
 
-- Producto NO recurrente (one-off purchase)
-- Acceso permanente al contenido tras la compra
-- Hosting de video (proveedor por decidir)
-- Sistema de progreso ("cuánto llevo del curso")
-
-### Phase 8: Meditaciones guiadas
-
-- Producto recurrente (suscripción mensual) similar a mentoría pero con
-  acceso a librería de meditaciones (audio/video)
-- Sin límite de spots
-- Probable que comparta el panel del suscriptor con Phase 6
+El diseño vigente reemplaza las Phases 7 y 8 originales (cursos one-off +
+meditaciones por suscripción) por un solo producto: **Sadhana**,
+suscripción de $444 MXN/mes con acceso a la librería de contenido grabado
+(meditaciones, cursos, ejercicios; audio y video, hosting en Mux). Los
+suscriptores de Mentoría acceden vía entitlements sin pagar aparte. El
+detalle completo (decisiones S1–S10, slices, gates) vive en
+`docs/PLAN_CATALOGO_Y_SADHANA.md` (Fase 2).
 
 ### Phase 9: Comunidad interna
 
@@ -408,4 +423,7 @@ conclusión del brainstorming.
   no tiene mirrored vars (también Phase 6.5 backlog).
 - Para el snapshot operacional completo del sistema LIVE ver
   `SYSTEM_STATUS.md`.
-- Pendiente: brainstorming → writing-plans → execution de Phase 6
+- Trabajo actual: **Fase 1 del plan de catálogo**
+  (`docs/PLAN_CATALOGO_Y_SADHANA.md`) — catálogo Divinación con 3
+  variantes. Phase 6 está ejecutada y lanzada; su brainstorming, spec y
+  plan viven en `docs/archive/superpowers/`.

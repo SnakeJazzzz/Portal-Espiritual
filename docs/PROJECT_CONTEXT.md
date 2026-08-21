@@ -43,7 +43,9 @@ Servicios live en producción:
 Stack agregado en Phase 6 (live):
 - **DB**: Neon Postgres (vía Vercel Marketplace) + Drizzle
 - **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma que Cal.com)
-- **Email transaccional**: Resend (cuenta del developer, dominio del cliente)
+- **Email transaccional**: Resend (cuenta del cliente JP —
+  `akasha.infinito8@gmail.com`, específica para Portal Espiritual; dominio
+  verificado del cliente)
 - **Validación**: Zod
 
 ---
@@ -113,7 +115,10 @@ src/
 - Cal.com username del cliente: `portal-espiritual`
 - Stripe del cliente: existe, misma cuenta para Cal.com y Phase 6.
   El developer tiene acceso al dashboard para configuración.
-- Resend: cuenta del developer, dominio del cliente (verificación DNS).
+- Resend: cuenta del cliente (JP), registrada con
+  `akasha.infinito8@gmail.com` — cuenta específica para Portal Espiritual,
+  login accesible en el perfil de Chrome de JP. Dominio del cliente
+  (verificación DNS).
 - Stripe usa MXN. Considerar fees FX (~3.6% + $3 MXN por transacción).
 - **LFPDPPP** (ley mexicana de protección de datos): cualquier
   formulario que recolecte datos personales necesita aviso de

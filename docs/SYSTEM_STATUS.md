@@ -67,6 +67,7 @@ Detalle operacional del Customer Portal (qué togglear, cómo verificar):
 
 | Componente | Valor |
 |---|---|
+| Titularidad | Cuenta del cliente (JP): `akasha.infinito8@gmail.com`, específica para Portal Espiritual (login en el perfil de Chrome de JP) |
 | Dominio | `portalespiritual.com.mx` (verified) |
 | DKIM + SPF | Green |
 | Sender | `hola@portalespiritual.com.mx` |
