@@ -56,8 +56,10 @@ así que toda migración debe aplicarse a **ambos** branches o el schema del
 `test` branch driftea:
 
 ```bash
-node --env-file=.env.local npm run db:migrate        # branch main (prod)
-node --env-file=.env.local npm run db:migrate:test   # branch test
+# branch main (prod)
+node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate
+# branch test
+node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate --config=drizzle.config.test.ts
 ```
 
 ## Project structure

@@ -5,12 +5,12 @@ import type { Config } from 'drizzle-kit';
 // there never reach the test branch — every migration must be applied to
 // BOTH branches or the schemas drift and the integration suite tests a
 // stale schema. Usage:
-//   node --env-file=.env.local npm run db:migrate:test
+//   node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate --config=drizzle.config.test.ts
 const url = process.env.DATABASE_URL_TEST;
 if (!url) {
   throw new Error(
     'db:migrate:test requires DATABASE_URL_TEST (Neon test branch). ' +
-    'Run with: node --env-file=.env.local npm run db:migrate:test',
+    'Run with: node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate --config=drizzle.config.test.ts',
   );
 }
 
