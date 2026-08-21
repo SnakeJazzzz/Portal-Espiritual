@@ -39,11 +39,28 @@ npx tsc --noEmit
 ALLOW_DESTRUCTIVE_TESTS=true node --env-file=.env.local ./node_modules/.bin/vitest run
 ```
 
-> **⚠️ Importante:** los integration tests truncan tablas. `.env.local`
-> actualmente apunta al Neon `main` branch compartido con producción
-> ([HIGH/DI-1 en backlog](docs/PHASE_6_5_BACKLOG.md)). Verificá
-> `DATABASE_URL` no apunte a prod antes de correr destructive tests. La
-> standing rule está en [`CLAUDE.md`](CLAUDE.md).
+La suite de integración corre contra el Neon **`test` branch**, nunca contra
+producción. Dos env vars obligatorias en `.env.local`:
+
+- **`DATABASE_URL_TEST`** — connection string del Neon `test` branch. El
+  setup de vitest (`tests/integration/env-guard.ts`) remapea
+  `DATABASE_URL` a este valor antes de cargar cualquier módulo de la app.
+  Sin fallback: si falta, la suite aborta antes de abrir conexión alguna.
+  También aborta si su host coincide con el host de `DATABASE_URL` (guard
+  anti-producción).
+- **`ALLOW_DESTRUCTIVE_TESTS=true`** — opt-in explícito: los integration
+  tests truncan tablas (`beforeEach` en `tests/integration/setup.ts`).
+
+**Migraciones:** `drizzle.config.ts` apunta a `DATABASE_URL` (producción),
+así que toda migración debe aplicarse a **ambos** branches o el schema del
+`test` branch driftea:
+
+```bash
+# branch main (prod)
+node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate
+# branch test
+node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate --config=drizzle.config.test.ts
+```
 
 ## Project structure
 

@@ -50,6 +50,13 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
 - Task plans con TDD en `docs/superpowers/plans/`
 - CHANGELOG.md histórico de phases
 - Phase actual: **Phase 6 — Mentoría con suscripción mensual** (planning)
+- **Migraciones:** toda migración se aplica a AMBOS branches de Neon.
+  Después de `drizzle-kit generate`, correr siempre los dos comandos:
+  `db:migrate` (main/prod) y `db:migrate:test` (branch test), ambos via
+  `node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate
+  [--config=drizzle.config.test.ts]`. Una migración aplicada solo a main
+  hace que la suite de integración corra contra schema viejo y falle por
+  razones falsas.
 
 ## Hooks de seguridad activos (`.claude/hooks/`)
 - Bloquea writes en `main`/`master`

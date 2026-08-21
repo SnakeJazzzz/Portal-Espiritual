@@ -5,34 +5,17 @@ import { eq, sql } from 'drizzle-orm';
 
 const TABLES_TO_WIPE: string[] = ['audit_log', 'sessions', 'stripe_events', 'auth_tokens', 'subscriptions', 'subscribers', 'rate_limit_attempts', 'waitlist'];
 
-// Pre-launch hotfix: the Neon "main" branch is currently shared between
-// local dev and production Vercel (DATABASE_URL_TEST split deferred to
-// Phase 6.5). A bare `vitest run` would TRUNCATE production data via the
-// beforeEach below. Gate the suite behind an explicit env var so that an
-// accidental test invocation fails fast WITHOUT touching the database.
-// See docs/known-issues-pre-launch.md.
+// The suite runs against the Neon "test" branch: env-guard.ts (first
+// vitest setup file, see vitest.config.ts) validates DATABASE_URL_TEST
+// and remaps DATABASE_URL onto it BEFORE the @/db/client import above
+// executes. The gate below is defense-in-depth: it re-checks the opt-in
+// in case env-guard.ts is ever removed from setupFiles or reordered.
 beforeAll(async () => {
   if (process.env.ALLOW_DESTRUCTIVE_TESTS !== 'true') {
     throw new Error(
-      [
-        '',
-        'Integration tests refuse to run: ALLOW_DESTRUCTIVE_TESTS env var not set.',
-        '',
-        'These tests TRUNCATE shared tables (subscribers, subscriptions, audit_log, ...) before each test.',
-        'The Neon "main" branch is currently shared between local dev and production —',
-        'running tests without the gate would destroy production data.',
-        '',
-        'Safe workflow:',
-        '  1. Confirm DATABASE_URL in .env.local points to a non-prod DB, OR',
-        '  2. Manually back up production data first, THEN',
-        '  3. Run:  ALLOW_DESTRUCTIVE_TESTS=true npm test',
-        '',
-        'Manual reset (without running tests):',
-        '  ALLOW_DESTRUCTIVE_TESTS=true npx tsx scripts/test-db-reset.ts',
-        '',
-        'See docs/known-issues-pre-launch.md for full context.',
-        '',
-      ].join('\n'),
+      'Integration tests refuse to run: ALLOW_DESTRUCTIVE_TESTS env var not set. ' +
+      'These tests TRUNCATE tables before each test. Run: ' +
+      'ALLOW_DESTRUCTIVE_TESTS=true node --env-file=.env.local ./node_modules/.bin/vitest run',
     );
   }
 
