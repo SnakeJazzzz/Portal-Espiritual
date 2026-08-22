@@ -153,6 +153,9 @@ viola.
 
 ## 4. Alcance de Phase 6
 
+> Sección redactada durante el planning de Phase 6; se preserva como
+> registro. Phase 6 está lanzada.
+
 Modo de lanzamiento: **completo del lado del suscriptor; mínimo del lado
 admin**. Phase 6 incluye el flujo completo del suscriptor (registro,
 checkout, dashboard, cancelación, edición de perfil) Y un panel admin
@@ -204,6 +207,9 @@ para el alcance exacto.
 ---
 
 ## 5. Requisitos transversales (aplican a todo Phase 6)
+
+> Sección redactada durante el planning de Phase 6; se preserva como
+> registro. Phase 6 está lanzada.
 
 ### Privacidad y legal
 
@@ -416,9 +422,11 @@ conclusión del brainstorming.
   - Resend: dominio `portalespiritual.com.mx` verified, sender
     `hola@portalespiritual.com.mx`
   - Neon: DB `portal-espiritual-db` vía Vercel Marketplace. Branch
-    `main` único, compartido entre dev local + production (split a
-    `DATABASE_URL_TEST` deferred a Phase 6.5 — ver `PHASE_6_5_BACKLOG.md`
-    item HIGH/Data-integrity #1)
+    `main` (dev local + production) + branch `test` dedicado a la suite
+    de integración vía `DATABASE_URL_TEST`, con guards de aislamiento de
+    host antes de cualquier conexión (merge `1f9cc89`, 2026-08-21;
+    backlog item [HIGH/DI-1] completado). Toda migración se aplica a
+    AMBOS branches: `db:migrate` + `db:migrate:test`
 - Vercel env vars: 8 vars Zod-validated en Production scope. Preview scope
   no tiene mirrored vars (también Phase 6.5 backlog).
 - Para el snapshot operacional completo del sistema LIVE ver

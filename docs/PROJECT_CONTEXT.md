@@ -143,10 +143,12 @@ src/
 
 - Branch `main`: Phase 6 launched 2026-05-27, tag `phase-6-launched`.
   Mentoría 1-a-1 LIVE en producción.
-- Última merge significativa: `Merge hotfix: admin UX + security fixes
-  from LIVE smoke` (PR #1, 5 commits).
-- Próxima feature: **Phase 6.5** — post-launch polish + tech debt.
-  Backlog priorizado en `PHASE_6_5_BACKLOG.md`.
+- Última merge significativa: `fix/test-db-isolation` (`1f9cc89`,
+  2026-08-21) — suite de integración aislada de producción vía
+  `DATABASE_URL_TEST` + Neon branch `test` (backlog DI-1 completado).
+- Trabajo actual: **Fase 1 de `docs/PLAN_CATALOGO_Y_SADHANA.md`** —
+  catálogo Divinación con 3 variantes + promo de lanzamiento. Phase 6.5
+  (polish + tech debt) sigue priorizada en `PHASE_6_5_BACKLOG.md`.
 - Snapshot operacional completo: `SYSTEM_STATUS.md`.
 
 ---

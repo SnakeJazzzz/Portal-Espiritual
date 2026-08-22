@@ -46,8 +46,10 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
   recolecte datos personales necesita aviso de privacidad accesible.
 
 ## Workflow
-- Design docs en `docs/superpowers/specs/`
-- Task plans con TDD en `docs/superpowers/plans/`
+- Specs y plans (TDD) de la fase ACTIVA viven en `docs/superpowers/`
+  (`specs/` y `plans/`); al completarse una fase se archivan a
+  `docs/archive/superpowers/` y el dir activo se recrea cuando arranca
+  la siguiente fase
 - CHANGELOG.md histórico de phases
 - Phase 6 (Mentoría) **lanzada y en producción** desde 2026-05-27
   (tag `phase-6-launched`)
@@ -82,14 +84,15 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
      → siempre `git commit -F file`, NUNCA heredoc. Shell escape
      defensivo en heredoc quoted persiste literal en el commit.
 
-   - **NEVER run vitest contra `.env.local` si apunta al Neon branch
-     de producción.** Verificá `DATABASE_URL` (`echo $DATABASE_URL`
-     o inspeccionando el archivo) antes de cualquier comando que
-     dispare `tests/integration/setup.ts` — el `beforeEach` ahí
-     ejecuta `TRUNCATE` sobre 8 tablas. El gate
-     `ALLOW_DESTRUCTIVE_TESTS=true` es tripwire, no garantía. Hasta
-     que aterrice DATABASE_URL_TEST (Phase 6.5 HIGH/DI-1), esta regla
-     es vinculante. Ya hubo 2 incidentes de truncate de prod
+   - **Destructive tests: aislamiento activo desde el merge `1f9cc89`
+     (2026-08-21, backlog DI-1).** La suite corre contra el Neon branch
+     `test` vía `DATABASE_URL_TEST` (sin fallback):
+     `tests/integration/env-guard.ts` aborta antes de abrir conexión
+     alguna si falta la var, si falta `ALLOW_DESTRUCTIVE_TESTS=true`,
+     o si el host de test coincide con el de `DATABASE_URL`. La regla
+     manual previa ("verificá DATABASE_URL antes de correr vitest")
+     quedó automatizada por esos guards; no los debilites ni los
+     reordenes. Antecedente: 2 incidentes de truncate de prod
      recuperables durante el ciclo de hotfix 2026-05-26/27.
 
    - **Path patterns con corchetes necesitan single-quote en zsh.**
