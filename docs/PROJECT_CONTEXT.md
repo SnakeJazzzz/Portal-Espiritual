@@ -43,7 +43,9 @@ Servicios live en producción:
 Stack agregado en Phase 6 (live):
 - **DB**: Neon Postgres (vía Vercel Marketplace) + Drizzle
 - **Pagos recurrentes**: Stripe Subscriptions (cuenta del cliente, misma que Cal.com)
-- **Email transaccional**: Resend (cuenta del developer, dominio del cliente)
+- **Email transaccional**: Resend (cuenta del cliente JP —
+  `akasha.infinito8@gmail.com`, específica para Portal Espiritual; dominio
+  verificado del cliente)
 - **Validación**: Zod
 
 ---
@@ -113,7 +115,10 @@ src/
 - Cal.com username del cliente: `portal-espiritual`
 - Stripe del cliente: existe, misma cuenta para Cal.com y Phase 6.
   El developer tiene acceso al dashboard para configuración.
-- Resend: cuenta del developer, dominio del cliente (verificación DNS).
+- Resend: cuenta del cliente (JP), registrada con
+  `akasha.infinito8@gmail.com` — cuenta específica para Portal Espiritual,
+  login accesible en el perfil de Chrome de JP. Dominio del cliente
+  (verificación DNS).
 - Stripe usa MXN. Considerar fees FX (~3.6% + $3 MXN por transacción).
 - **LFPDPPP** (ley mexicana de protección de datos): cualquier
   formulario que recolecte datos personales necesita aviso de
@@ -138,10 +143,12 @@ src/
 
 - Branch `main`: Phase 6 launched 2026-05-27, tag `phase-6-launched`.
   Mentoría 1-a-1 LIVE en producción.
-- Última merge significativa: `Merge hotfix: admin UX + security fixes
-  from LIVE smoke` (PR #1, 5 commits).
-- Próxima feature: **Phase 6.5** — post-launch polish + tech debt.
-  Backlog priorizado en `PHASE_6_5_BACKLOG.md`.
+- Última merge significativa: `fix/test-db-isolation` (`1f9cc89`,
+  2026-08-21) — suite de integración aislada de producción vía
+  `DATABASE_URL_TEST` + Neon branch `test` (backlog DI-1 completado).
+- Trabajo actual: **Fase 1 de `docs/PLAN_CATALOGO_Y_SADHANA.md`** —
+  catálogo Divinación con 3 variantes + promo de lanzamiento. Phase 6.5
+  (polish + tech debt) sigue priorizada en `PHASE_6_5_BACKLOG.md`.
 - Snapshot operacional completo: `SYSTEM_STATUS.md`.
 
 ---

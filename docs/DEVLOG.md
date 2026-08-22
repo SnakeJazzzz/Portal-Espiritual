@@ -1,5 +1,9 @@
 # Development Log - Portal Espiritual
 
+> **Documento histórico append-only.** NO refleja el estado actual del
+> proyecto; para estado actual ver `PROJECT_CONTEXT.md` y
+> `ARCHITECTURE_AND_ROADMAP.md`.
+
 ## Phase 6 — LIVE Launch + Hotfix Cycle — May 26-27, 2026
 
 **Status:** Phase 6 (Mentoría 1-a-1) launched to production. Tag

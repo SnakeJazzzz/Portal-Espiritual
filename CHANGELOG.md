@@ -1,5 +1,9 @@
 # Changelog
 
+> **Documento histórico append-only.** NO refleja el estado actual del
+> proyecto; para estado actual ver `docs/PROJECT_CONTEXT.md` y
+> `docs/ARCHITECTURE_AND_ROADMAP.md`.
+
 All notable changes to the Portal Espiritual project. Newest entries on top.
 
 Format note: Phase 1-5 entries below follow Keep-a-Changelog style with

@@ -28,6 +28,14 @@
 
 #### [HIGH/DI-1] Split DATABASE_URL_TEST como Neon branch aparte
 
+**Status: COMPLETADO** (merge `1f9cc89`, 2026-08-21). Se implementó el
+Approach A ampliado: branch Neon `test` + `DATABASE_URL_TEST` sin
+fallback; guards en `tests/integration/env-guard.ts` (existencia de la
+var, `ALLOW_DESTRUCTIVE_TESTS`, host de test ≠ host de producción) que
+abortan antes de abrir conexión alguna; lógica de guards como función
+pura con unit tests; y script `db:migrate:test` para paridad de schema
+entre branches. El contenido original se preserva abajo como registro.
+
 **Context:** during the hotfix cycle, two destructive-TRUNCATE incidents
 occurred because integration tests (`tests/integration/setup.ts`) run a
 `beforeEach` that `TRUNCATE`s 8 tables. `.env.local` currently points
@@ -75,7 +83,11 @@ The rule: NEVER run vitest against `.env.local` without first verifying
 surfaced twice during launch — the rule reduces the third occurrence
 probability for new contributors who haven't seen the incident.
 
-**Permanent fix:** [HIGH/DI-1] makes this rule obsolete.
+**Permanent fix:** [HIGH/DI-1] makes this rule obsolete. **Aplicado
+2026-08-22:** DI-1 está completado y la regla manual en `CLAUDE.md` fue
+reemplazada por la descripción del aislamiento automático (los guards de
+`tests/integration/env-guard.ts` hacen la verificación que la regla
+pedía hacer a mano).
 
 ---
 

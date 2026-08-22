@@ -1,5 +1,9 @@
 # Known issues — pre-launch (Phase 6)
 
+> **Documento histórico append-only.** NO refleja el estado actual del
+> proyecto; para estado actual ver `docs/PROJECT_CONTEXT.md` y
+> `docs/ARCHITECTURE_AND_ROADMAP.md`.
+
 Living list of bugs and risks discovered while shipping Phase 6 that have
 either been temp-fixed in place or deferred to Phase 6.5. Each entry has
 trigger, current state, and follow-up.
