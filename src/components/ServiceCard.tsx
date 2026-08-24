@@ -1,6 +1,6 @@
 'use client';
 
-import type { Service } from '@/config/services';
+import { siteConfig, type Service } from '@/config/services';
 import CelestialBorder from '@/components/CelestialBorder';
 
 interface ServiceCardProps {
@@ -16,18 +16,41 @@ export default function ServiceCard({ service }: ServiceCardProps) {
           {service.name}
         </h3>
 
-        {/* Duration and Price */}
-        <div className="flex items-center gap-2 text-lg lg:text-2xl mt-3">
-          <span className="text-portal-text/80">{service.duration}</span>
-          <span className="text-portal-text/90">•</span>
-          <span className="text-portal-text/80">
-            $<span className="text-portal-text/70">{service.price}</span>{' '}
-            {service.currency}
-          </span>
-        </div>
+        {/* Promo label */}
+        {siteConfig.promoActive && (
+          <p className="mt-2 text-base lg:text-xl uppercase tracking-widest text-white/70">
+            {siteConfig.promoLabel}
+          </p>
+        )}
+
+        {/* Duration + price list */}
+        <ul className="mt-4 space-y-2">
+          {service.variants.map((variant) => (
+            <li
+              key={variant.calcomEventSlug}
+              className="flex items-baseline justify-between text-lg lg:text-2xl"
+            >
+              <span className="text-portal-text/80">{variant.duration}</span>
+              {siteConfig.promoActive ? (
+                <span className="flex items-baseline gap-3">
+                  <s className="text-portal-text/40">
+                    ${variant.regularPrice}
+                  </s>
+                  <span className="text-white font-semibold">
+                    ${variant.launchPrice} {service.currency}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-portal-text/80">
+                  ${variant.regularPrice} {service.currency}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
 
         {/* Description */}
-        <p className="mt-4 text-lg lg:text-2xl text-portal-text/90 leading-relaxed">
+        <p className="mt-4 text-lg lg:text-2xl text-portal-text/90 leading-relaxed whitespace-pre-line">
           {service.description}
         </p>
       </div>
