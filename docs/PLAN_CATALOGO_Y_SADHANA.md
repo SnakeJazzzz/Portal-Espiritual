@@ -88,13 +88,28 @@ Los event types de Cal.com se configuran con el **precio efectivo** (es lo que S
    romper el historial de bookings). El retiro efectivo del catálogo viejo
    es el propio cambio de código de Fase 1.
 
-### Gate de Fase 1
+### Gate de Fase 1 — CUMPLIDO 2026-08-24 (tag `fase-1-catalogo`)
 
-- Las 3 duraciones se reservan y cobran correctamente (booking real de prueba por duración, o al menos una con verificación de config de las otras dos)  
-- Card se ve correcta en 375px (in-app browser de Instagram)  
-- Tachado \+ precio de lanzamiento renderizan según `promoActive`  
-- Copy nuevo en producción sin restos del catálogo anterior  
-- Event types viejos ocultos, bookings existentes intactos
+- [x] Las 3 duraciones se reservan y cobran correctamente — booking real
+  de prueba de `divinacion-15` en producción, cobro MX$444 exitoso vía
+  Cal.com+Stripe (posteriormente reembolsado); `divinacion-30/60`
+  verificados por config  
+- [x] Card se ve correcta en 375px (smoke con puppeteer, viewport 375×812)  
+- [x] Tachado \+ precio de lanzamiento renderizan según `promoActive`
+  (verificado en ambos estados del flag)  
+- [x] Copy nuevo en producción sin restos del catálogo anterior (grep de
+  slugs viejos: cero referencias vivas)  
+- [x] Event types viejos ocultos (ya estaban Hidden; quedan Hidden, no se
+  borran), cero bookings futuros que honrar
+
+**Warts aceptados (registro, no bloquean):**
+
+- El custom event name de los event types nuevos en Cal.com muestra
+  "Lectura de cartas {attendee}" — es solo display de Cal.com; el
+  statement descriptor bancario correcto es `PORTALESPIRITUAL`.  
+- Fuga de checkout: \~1/3 de los bookings históricos abandonan en el paso
+  de pago. Queda como métrica a observar post-launch (no se acciona en
+  Fase 1).
 
 ---
 
@@ -241,9 +256,9 @@ Criterio de launch (no de merge): existe contenido real subido por JP. No se lan
 ## Pendientes externos (checklist del developer, fuera del código)
 
 - [ ] Crear cuenta de Mux a nombre de JP; developer con acceso; environments prod \+ dev; método de pago de JP  
-- [ ] Crear los 3 event types de Divinación en Cal.com con precios efectivos  
-- [ ] Revisar bookings futuros de los event types que se retiran  
-- [ ] Ocultar event types viejos post-deploy de Fase 1  
+- [x] ~~Crear los 3 event types de Divinación en Cal.com con precios efectivos~~ (hecho, verificado 2026-08-24)  
+- [x] ~~Revisar bookings futuros de los event types que se retiran~~ (cero bookings futuros)  
+- [x] ~~Ocultar event types viejos post-deploy de Fase 1~~ (ya estaban Hidden; quedan Hidden permanentemente)  
 - [ ] Registrar `staging.portalespiritual.com.mx` en Vercel \+ DNS  
 - [ ] Registrar webhooks de staging (Stripe test \+ Mux dev)  
 - [ ] Revisar config del Customer Portal (test y live) con dos productos  

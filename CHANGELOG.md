@@ -15,6 +15,22 @@ untouched for audit-trail preservation.
 
 ---
 
+## 2026-08-24 — Fase 1: catálogo Divinación lanzada
+
+Tag `fase-1-catalogo`. Catálogo reducido a un solo servicio, Divinación,
+con 3 variantes de duración (15/30/60 min) y promoción de lanzamiento
+(precios regulares 888/1555/2222 MXN tachados → efectivos 444/777/1111
+MXN, flag `promoActive` en config). Copy nuevo de Divinación, Mentoría
+("2 sesiones privadas de 30 min al mes") y Sobre mí. ServiceSelectionModal
+evoluciona a selector de duración (fix de stacking context: portal a
+`document.body`). Event types `divinacion-15/30/60` creados en Cal.com
+con los precios efectivos; los 4 event types viejos retirados del código
+y Hidden en Cal.com (no borrados). Pago real de prueba verificado
+end-to-end en producción: booking de `divinacion-15`, cobro MX$444
+exitoso vía Cal.com+Stripe, posteriormente reembolsado.
+
+---
+
 ## 2026-05-27 — Phase 6 launched
 
 Tag `phase-6-launched` applied. Mentoría 1-a-1 service LIVE in production

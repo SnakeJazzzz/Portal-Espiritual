@@ -143,11 +143,11 @@ src/
 
 - Branch `main`: Phase 6 launched 2026-05-27, tag `phase-6-launched`.
   Mentoría 1-a-1 LIVE en producción.
-- Última merge significativa: `fix/test-db-isolation` (`1f9cc89`,
-  2026-08-21) — suite de integración aislada de producción vía
-  `DATABASE_URL_TEST` + Neon branch `test` (backlog DI-1 completado).
-- Trabajo actual: **Fase 1 de `docs/PLAN_CATALOGO_Y_SADHANA.md`** —
-  catálogo Divinación con 3 variantes + promo de lanzamiento. Phase 6.5
+- Última merge significativa: `feat/catalogo-divinacion` (`cb2b799`,
+  2026-08-24, tag `fase-1-catalogo`) — Fase 1 lanzada: catálogo
+  Divinación con 3 variantes + promo de lanzamiento.
+- Siguiente: **Fase 2 — Sadhana** (`docs/PLAN_CATALOGO_Y_SADHANA.md`),
+  pendiente de arranque; empieza por el slice S0 (ambientes). Phase 6.5
   (polish + tech debt) sigue priorizada en `PHASE_6_5_BACKLOG.md`.
 - Snapshot operacional completo: `SYSTEM_STATUS.md`.
 

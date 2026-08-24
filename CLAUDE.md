@@ -53,8 +53,10 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
 - CHANGELOG.md histórico de phases
 - Phase 6 (Mentoría) **lanzada y en producción** desde 2026-05-27
   (tag `phase-6-launched`)
-- Trabajo actual: **Fase 1 de `docs/PLAN_CATALOGO_Y_SADHANA.md`** —
-  catálogo Divinación con 3 variantes + promo de lanzamiento
+- Fase 1 (catálogo Divinación) **lanzada** 2026-08-24 (tag
+  `fase-1-catalogo`)
+- Siguiente: **Fase 2 — Sadhana** (`docs/PLAN_CATALOGO_Y_SADHANA.md`),
+  pendiente de arranque; empieza por el slice S0 (ambientes)
 - **Migraciones:** toda migración se aplica a AMBOS branches de Neon.
   Después de `drizzle-kit generate`, correr siempre los dos comandos:
   `db:migrate` (main/prod) y `db:migrate:test` (branch test), ambos via
