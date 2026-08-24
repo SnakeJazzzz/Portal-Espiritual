@@ -40,8 +40,8 @@ export default function Hero() {
         </p>
 
         {/* Service Cards Grid */}
-        <div className="max-w-5xl mx-auto px-6 sm:px-8 lg:px-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+        <div className="max-w-2xl mx-auto px-6 sm:px-8 lg:px-16">
+          <div className="grid grid-cols-1 gap-6 lg:gap-8">
             {services.map((service, index) => (
               <div
                 key={service.id}

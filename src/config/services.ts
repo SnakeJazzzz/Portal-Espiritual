@@ -1,57 +1,63 @@
 /**
  * Single source of truth for all editable content on Portal Espiritual
  * All service data, pricing, and site configuration lives here
+ *
+ * ── Fin de la promoción de lanzamiento (procedimiento completo) ──────────
+ * Los event types de Cal.com cobran el launchPrice (precio efectivo).
+ * El regularPrice tachado es solo display en nuestra card. Hay DOS fuentes
+ * de precio (este config + Cal.com), así que el día que JP pida terminar
+ * la promo hay que hacer AMBOS pasos:
+ *   1. Poner `promoActive: false` en siteConfig (la card pasa a mostrar
+ *      solo el regularPrice).
+ *   2. Actualizar el precio de los 3 event types en Cal.com
+ *      (divinacion-15/30/60) al regularPrice correspondiente.
+ *   3. Deploy.
+ * Si se hace solo el paso 1, Cal.com sigue cobrando el precio de promo.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
-// Placeholder for new Cal.com event slug - replace this value after creating the event in Cal.com
-const CAL_SLUG_ACTIVACION_CUANTICA = "TODO-REPLACE";
+export interface ServiceVariant {
+  duration: string;          // "15 min"
+  regularPrice: number;      // precio mostrado tachado durante la promo
+  launchPrice: number;       // precio efectivo cobrado (= precio en Cal.com)
+  calcomEventSlug: string;   // "divinacion-15"
+}
 
 export interface Service {
   id: string;
   name: string;
-  duration: string;
-  price: number;
   currency: string;
   description: string;
-  calcomEventSlug: string;
+  variants: ServiceVariant[];
 }
 
 export const services: Service[] = [
   {
-    id: 'lectura-de-cartas',
-    name: 'Divinación de Cartas',
-    duration: '30 min',
-    price: 555,
+    id: 'divinacion',
+    name: 'Divinación',
     currency: 'MXN',
-    description: 'Un espacio para hacer cualquier tipo de pregunta, revelar información oculta, entrar en detalle y analizar cualquier situación de vida, todo a través de las cartas.',
-    calcomEventSlug: 'lectura-de-cartas',
-  },
-  {
-    id: 'divinacion-akashica',
-    name: 'Divinación Akáshica',
-    duration: '45 min',
-    price: 666,
-    currency: 'MXN',
-    description: 'Entraremos en tu Akasha, los Registros Universales de tu Alma, donde conectaremos con tus otras vidas, tu misión y propósito de vida, líneas del tiempo para ti, sanar lazos kármicos y revelar cualquier otra información que sea de alineación con tu ser superior, tu historia a través del tiempo y el espacio.',
-    calcomEventSlug: 'divinacion-akashica',
-  },
-  {
-    id: 'uno-a-uno',
-    name: 'Divinación Clásica',
-    duration: '60 min',
-    price: 888,
-    currency: 'MXN',
-    description: 'Un espacio donde hablaremos uno a uno, conectaremos con tu ser superior, tus guías, ángeles, ancestros y cualquier otro ser divino que esté presente, un espacio para preguntar lo que gustes y yo estaré comunicándote cualquier información que sea de alineación para ti en ese momento de parte de tu equipo espiritual. Una lectura completa y profunda con un toque personalizado para ti.',
-    calcomEventSlug: 'uno-a-uno',
-  },
-  {
-    id: 'activacion-cuantica',
-    name: 'Activación Cuántica',
-    duration: '60 min',
-    price: 1111,
-    currency: 'MXN',
-    description: 'Este servicio consta de una activación cuántica de tu poder superior alineado a cualquier aspecto personal de tu elección, meditaremos juntos por 30 minutos donde yo acompañado de tu equipo espiritual estaremos activando tu potencial infinito en cualquier área de tu vida que sea de tu elección. Platicaremos sobre tu intención para esta activación y luego entraremos en la meditación y finalizaremos con un último mensaje de tu equipo espiritual.',
-    calcomEventSlug:'activacion-cuantica', 
+    description:
+      'Durante tu sesión abriremos un Espacio Sagrado donde hablaremos uno-a-uno, conectando con tu Espíritu y transmitiendo el mensaje de la Divinidad para ti en este momento. Un espacio donde conectaremos con tus Guías Espirituales, Ancestros, Angeles, Seres Divinos y tu Ser Superior, para que tu puedas preguntar y conectar con el mensaje que tiene tu Equipo Espiritual para ti.\n\nSi tu intención es entrar a tus Registros Akashicos, conectar con el mensaje Divino de tu Ser Superior, recibir consejo de tus Guías para tu camino, descubrir tus dones espirituales, recibir aclaración y información sobre tu misión y propósito aquí en la tierra, este es el espacio perfecto para ti.',
+    variants: [
+      {
+        duration: '15 min',
+        regularPrice: 888,
+        launchPrice: 444,
+        calcomEventSlug: 'divinacion-15',
+      },
+      {
+        duration: '30 min',
+        regularPrice: 1555,
+        launchPrice: 777,
+        calcomEventSlug: 'divinacion-30',
+      },
+      {
+        duration: '60 min',
+        regularPrice: 2222,
+        launchPrice: 1111,
+        calcomEventSlug: 'divinacion-60',
+      },
+    ],
   },
 ];
 
@@ -66,6 +72,9 @@ export interface SiteConfig {
   aboutBio: string;
   instagramUrl: string;
   calcomUsername: string;
+  promoActive: boolean;      // true = regularPrice tachado + launchPrice
+                             // false = solo regularPrice (ver procedimiento arriba)
+  promoLabel: string;
 }
 
 export const siteConfig: SiteConfig = {
@@ -76,7 +85,9 @@ export const siteConfig: SiteConfig = {
   aboutPhoto: '/about-photo.svg',
   aboutAlt: 'Foto de perfil',
   aboutTitle: 'Sobre Mí',
-  aboutBio: 'Hola mi nombre es Juan Pablo y soy un mensajero divino y guía espiritual.\n\nMe dedico al camino de la exploración de la consciencia y el autoconocimiento.\n\nFunciono como un puente entre el mundo físico y el mundo espiritual y estoy al servicio de la Humanidad y el Universo.\n\nTe ayudo a conectar con tu esencia, a traer claridad y alineación a tu vida y a encarnar tu versión de mas alta vibración.\n\nTodo momento es divino, con amor JP.',
+  aboutBio: 'Hola mi nombre es Juan Pablo mucho gusto ❤️\n\nYo me dedico a la exploración de la consciencia, el autoconocimiento y estoy al servicio del Universo 🙏🏻\n\nA través de mi despertar aprendí a comunicarme con el mundo espiritual, re conectándome con mi esencia Divina y recordando quién soy, abrazando la experiencia terrenal 🌎\n\nLo más importante para mí es amarse a uno mismo y des de ese Amor Divino que cultivamos en nuestro interior compartirlo con el mundo y paso a pasito crearemos un mundo en unidad donde hay espacio para todos y todo 🌀\n\nViviendo mi misión Divina en esta tierra ✨',
   instagramUrl: 'https://www.instagram.com/la_consciencia_colectiva?igsh=Z2o1eHpzc2Z3bXlj',
   calcomUsername: 'portal-espiritual',
+  promoActive: true,
+  promoLabel: '50% off por tiempo limitado',
 };

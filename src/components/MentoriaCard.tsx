@@ -40,7 +40,7 @@ export default function MentoriaCard({ capacityFull, onWaitlistClick }: Mentoria
         <p className="mt-2 text-lg lg:text-2xl text-portal-text/80">
           {mentoriaConfig.priceLabel}
         </p>
-        <p className="mt-4 text-lg lg:text-2xl text-portal-text/90 leading-relaxed">
+        <p className="mt-4 text-lg lg:text-2xl text-portal-text/90 leading-relaxed whitespace-pre-line">
           {mentoriaConfig.description}
         </p>
         <div className="mt-6 space-y-3">

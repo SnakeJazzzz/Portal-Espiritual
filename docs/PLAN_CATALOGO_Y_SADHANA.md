@@ -73,12 +73,20 @@ Los event types de Cal.com se configuran con el **precio efectivo** (es lo que S
 
 **C7. Copy.** Entra el copy nuevo de JP para Divinación y "Sobre mí" íntegros. En Mentoría entra el copy nuevo **con un ajuste confirmado por JP**: el bullet "1 llamada privada semanal" se publica como "2 sesiones privadas de 30 min al mes" (el producto no cambia; si JP quiere pasar a cadencia semanal en el futuro, es cambio de producto con impacto en el contador de sesiones del admin — conversación separada). El fragmento "Espacio de productos online …" del copy original se descarta (confirmado con el developer: no agrega nada).
 
-### Secuencia de migración de Cal.com (orden estricto)
+### Secuencia de migración de Cal.com (actualizada con la realidad verificada, 2026-08-24)
 
-1. Revisar bookings futuros en los event types actuales. **Las sesiones ya agendadas se honran** — quedan en el calendario de JP y no se tocan.  
-2. Crear los 3 event types nuevos con precio efectivo; probar el flujo de pago de cada uno (booking de prueba end-to-end).  
-3. Deploy del frontend con el catálogo nuevo.  
-4. **Ocultar** (no borrar) los event types viejos. Borrarlos puede romper reschedules y el historial de bookings existentes.
+1. ~~Revisar bookings futuros en los event types actuales~~ — **verificado:
+   cero bookings futuros**; no hay sesiones agendadas que honrar.
+2. **Hecho:** los 3 event types nuevos (`divinacion-15/30/60`) existen en
+   Cal.com con los precios efectivos MX$444/777/1111, configuración
+   verificada.
+3. Deploy del frontend con el catálogo nuevo (branch
+   `feat/catalogo-divinacion`; el merge espera el booking de prueba real —
+   gate externo).
+4. **Ya estaba hecho:** los 4 event types viejos ya estaban **Hidden** en
+   Cal.com; quedan Hidden permanentemente (no se borran — borrarlos puede
+   romper el historial de bookings). El retiro efectivo del catálogo viejo
+   es el propio cambio de código de Fase 1.
 
 ### Gate de Fase 1
 

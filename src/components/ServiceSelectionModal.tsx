@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { services } from '@/config/services';
+import { services, siteConfig } from '@/config/services';
 
 interface ServiceSelectionModalProps {
   isOpen: boolean;
@@ -51,10 +51,15 @@ export default function ServiceSelectionModal({
 
   if (!isOpen) return null;
 
-  const handleServiceSelect = (calcomEventSlug: string) => {
+  const handleVariantSelect = (calcomEventSlug: string) => {
     onSelect(calcomEventSlug);
     onClose();
   };
+
+  // Catálogo actual: un solo servicio (Divinación); el selector elige duración
+  const variantRows = services.flatMap((service) =>
+    service.variants.map((variant) => ({ service, variant })),
+  );
 
   return (
     <div
@@ -88,28 +93,39 @@ export default function ServiceSelectionModal({
             id="modal-title"
             className="text-xl uppercase tracking-widest text-white/70"
           >
-            Elige tu sesión
+            Elige la duración
           </p>
         </div>
 
         {/* Divider */}
         <div className="border-t border-white/10 mb-4"></div>
 
-        {/* Service options */}
+        {/* Duration options */}
         <div className="space-y-0">
-          {services.map((service, index) => (
-            <div key={service.id}>
+          {variantRows.map(({ service, variant }, index) => (
+            <div key={variant.calcomEventSlug}>
               <button
-                onClick={() => handleServiceSelect(service.calcomEventSlug)}
+                onClick={() => handleVariantSelect(variant.calcomEventSlug)}
                 className="w-full cursor-pointer py-5 px-4 flex items-center justify-between group hover:bg-white/[0.03] transition-colors rounded-lg"
-                aria-label={`Seleccionar ${service.name}`}
+                aria-label={`Seleccionar ${service.name} de ${variant.duration}`}
               >
                 <div className="text-left">
                   <h3 className="text-white font-heading text-lg mb-1">
-                    {service.name}
+                    {service.name} · {variant.duration}
                   </h3>
                   <p className="text-white/80 text-base">
-                    {service.duration} · ${service.price} {service.currency}
+                    {siteConfig.promoActive ? (
+                      <>
+                        <s className="text-white/40">${variant.regularPrice}</s>{' '}
+                        <span className="text-white">
+                          ${variant.launchPrice} {service.currency}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        ${variant.regularPrice} {service.currency}
+                      </>
+                    )}
                   </p>
                 </div>
                 <span
@@ -119,7 +135,7 @@ export default function ServiceSelectionModal({
                   →
                 </span>
               </button>
-              {index < services.length - 1 && (
+              {index < variantRows.length - 1 && (
                 <div className="border-b border-white/5"></div>
               )}
             </div>
