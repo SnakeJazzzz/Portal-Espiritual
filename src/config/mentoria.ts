@@ -15,8 +15,8 @@ export const mentoriaConfig: MentoriaConfig = {
     '- Crecer y manifestar tu visión en redes sociales\n' +
     '- Aprender a comunicarte con el mundo espiritual\n' +
     '- Expandir y explorar tus habilidades supra sensoriales\n' +
-    '- Creación Consciente de tu realidad\n\n' +
-    'Está Mentoria es para ti, llegaste hasta aquí por una razón!\n\n' +
+    '- Creación Consciente de tu realidad\n' +
+    'Está Mentoria es para ti, llegaste hasta aquí por una razón!\n' +
     'Que incluye?\n' +
     '- 2 sesiones privadas de 30 min al mes\n' +
     '- Acceso a Mensajes directos por Instagram\n' +
