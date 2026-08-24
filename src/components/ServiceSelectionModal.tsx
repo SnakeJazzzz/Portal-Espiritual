@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { services, siteConfig } from '@/config/services';
 
 interface ServiceSelectionModalProps {
@@ -61,7 +62,11 @@ export default function ServiceSelectionModal({
     service.variants.map((variant) => ({ service, variant })),
   );
 
-  return (
+  // Portal to document.body: the modal mounts inside Hero's `relative z-10`
+  // stacking context, so its fixed z-50 overlay loses against any later
+  // sibling section with z-index (MentoriaHomeSection). Rendering at body
+  // level takes it out of every page stacking context for good.
+  return createPortal(
     <div
       className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={onClose}
@@ -142,6 +147,7 @@ export default function ServiceSelectionModal({
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

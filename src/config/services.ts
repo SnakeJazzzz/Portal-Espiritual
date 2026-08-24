@@ -85,7 +85,7 @@ export const siteConfig: SiteConfig = {
   aboutPhoto: '/about-photo.svg',
   aboutAlt: 'Foto de perfil',
   aboutTitle: 'Sobre Mí',
-  aboutBio: 'Hola mi nombre es Juan Pablo mucho gusto ❤️\n\nYo me dedico a la exploración de la consciencia, el autoconocimiento y estoy al servicio del Universo 🙏🏻\n\nA través de mi despertar aprendí a comunicarme con el mundo espiritual, re conectándome con mi esencia Divina y recordando quién soy, abrazando la experiencia terrenal 🌎\n\nLo más importante para mí es amarse a uno mismo y des de ese Amor Divino que cultivamos en nuestro interior compartirlo con el mundo y paso a pasito crearemos un mundo en unidad donde hay espacio para todos y todo 🌀\n\nViviendo mi misión Divina en esta tierra ✨',
+  aboutBio: 'Hola mi nombre es Juan Pablo mucho gusto ❤️\n\nYo me dedico a la exploración de la consciencia, el autoconocimiento y estoy al servicio del Universo 🙏🏻\n\nA través de mi despertar aprendí a comunicarme con el mundo espiritual, re conectándome con mi esencia Divina y recordando quién soy, abrazando la experiencia terrenal 🌎\n\nLo más importante para mí es amarse a uno mismo y desde ese Amor Divino que cultivamos en nuestro interior compartirlo con el mundo y paso a pasito crearemos un mundo en unidad donde hay espacio para todos y todo 🌀\n\nViviendo mi misión Divina en esta tierra ✨',
   instagramUrl: 'https://www.instagram.com/la_consciencia_colectiva?igsh=Z2o1eHpzc2Z3bXlj',
   calcomUsername: 'portal-espiritual',
   promoActive: true,
