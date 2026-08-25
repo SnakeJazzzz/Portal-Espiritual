@@ -15,13 +15,16 @@ Landing page mística de servicios espirituales del cliente Juan Pablo
 
 Servicios live en producción:
 
-- **Phases 1-5** (one-shot, Cal.com booking):
-  - Divinación de Cartas (30 min, $555 MXN)
-  - Divinación Akáshica (45 min, $666 MXN)
-  - Divinación Clásica (60 min, $888 MXN)
-  - Activación Cuántica (60 min, $1111 MXN)
+- **Fase 1 — catálogo Divinación** (lanzada 2026-08-24, tag
+  `fase-1-catalogo`; one-shot, Cal.com booking): un solo servicio
+  **Divinación** con 3 variantes de duración y promo de lanzamiento 50%:
+  - 15 min — ~~$888~~ $444 MXN
+  - 30 min — ~~$1555~~ $777 MXN
+  - 60 min — ~~$2222~~ $1111 MXN
 - **Phase 6** (LIVE desde 2026-05-27, tag `phase-6-launched`):
-  - Mentoría 1-a-1: suscripción mensual $2,222 MXN, 8 spots máximo
+  - Mentoría 1-a-1: suscripción mensual $2,222 MXN, 8 spots máximo.
+    Incluye 1 llamada privada semanal (desde Fase 1.5; el contador de
+    sesiones del admin usa 4/mes como tracking, no enforcement)
   - Stripe Subscriptions (LIVE keys, no Cal.com)
   - Magic-link auth para subscribers (Resend, 15min login TTL / 7d welcome TTL)
   - Customer Portal Stripe (cancel end-of-period, no immediate-cancel)
@@ -64,7 +67,7 @@ Stack agregado en Phase 6 (live):
 - **`src/config/services.ts` es single source of truth** para todo lo
   editable por el cliente (servicios, precios, descripciones, slugs Cal.com,
   hero/about copy). **No hardcodear contenido en componentes.**
-- Los 4 servicios actuales usan Cal.com.
+- El servicio Divinación (3 variantes de duración: 15/30/60 min) usa Cal.com.
 - La Mentoría 1-a-1 (Phase 6) usa Stripe Subscriptions directo, **no Cal.com**.
 - `StarField`, `ConstellationTitle` y `CelestialBorder` son la firma visual.
   Cambios visuales en estos requieren visual review humano.

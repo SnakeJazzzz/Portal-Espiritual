@@ -73,6 +73,14 @@ Los event types de Cal.com se configuran con el **precio efectivo** (es lo que S
 
 **C7. Copy.** Entra el copy nuevo de JP para Divinación y "Sobre mí" íntegros. En Mentoría entra el copy nuevo **con un ajuste confirmado por JP**: el bullet "1 llamada privada semanal" se publica como "2 sesiones privadas de 30 min al mes" (el producto no cambia; si JP quiere pasar a cadencia semanal en el futuro, es cambio de producto con impacto en el contador de sesiones del admin — conversación separada). El fragmento "Espacio de productos online …" del copy original se descarta (confirmado con el developer: no agrega nada).
 
+> **Actualización 2026-08-24 (Fase 1.5, aprobada por JP):** el ajuste de
+> C7 quedó superseded. El bullet publicado ahora es "1 llamada privada
+> semanal" (texto original de JP). Mismo precio, mismo producto/price en
+> Stripe — cero cambios en Stripe. El contador mensual de sesiones pasó
+> de 2 a 4 (`MENTORIA_SESSIONS_PER_MONTH` en `src/config/mentoria.ts`) y
+> se trata como tracking, no enforcement: los meses de 5 semanas JP hace
+> la quinta llamada y administra su calendario manualmente.
+
 ### Secuencia de migración de Cal.com (actualizada con la realidad verificada, 2026-08-24)
 
 1. ~~Revisar bookings futuros en los event types actuales~~ — **verificado:
