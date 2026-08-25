@@ -1,6 +1,7 @@
 import { db } from '@/db/client';
 import { products, subscriptions } from '@/db/schema';
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import { MENTORIA_SESSIONS_PER_MONTH } from '@/config/mentoria';
 
 export async function getCapacity(productSlug: string): Promise<{ used: number; total: number | null; productId: string }> {
   const product = await db.query.products.findFirst({ where: eq(products.slug, productSlug) });
@@ -51,7 +52,7 @@ export async function insertSubscriptionIfCapacity(params: {
       )
       SELECT ${params.subscriberId}::uuid, ${params.productId}::uuid, 'active',
              ${params.stripeSubscriptionId},
-             ${params.currentPeriodStart}, ${params.currentPeriodEnd}, 2
+             ${params.currentPeriodStart}, ${params.currentPeriodEnd}, ${MENTORIA_SESSIONS_PER_MONTH}
       WHERE (
         SELECT COUNT(*) FROM subscriptions
         WHERE product_id = ${params.productId}::uuid

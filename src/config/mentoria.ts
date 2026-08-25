@@ -1,3 +1,7 @@
+// 1 llamada semanal; 4 como aproximación mensual para tracking, no
+// enforcement — meses de 5 semanas se manejan manualmente.
+export const MENTORIA_SESSIONS_PER_MONTH = 4;
+
 export interface MentoriaConfig {
   title: string;
   priceLabel: string;
@@ -18,7 +22,7 @@ export const mentoriaConfig: MentoriaConfig = {
     '- Creación Consciente de tu realidad\n' +
     'Está Mentoria es para ti, llegaste hasta aquí por una razón!\n' +
     'Que incluye?\n' +
-    '- 2 sesiones privadas de 30 min al mes\n' +
+    '- 1 llamada privada semanal\n' +
     '- Acceso a Mensajes directos por Instagram\n' +
     '- Prácticas semanales\n' +
     '- Acompañamiento y guía en tu camino',

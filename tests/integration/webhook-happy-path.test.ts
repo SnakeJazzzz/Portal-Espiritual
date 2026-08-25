@@ -61,7 +61,7 @@ describe('Test 1 — Webhook happy path', () => {
 
     const subscription = await db.query.subscriptions.findFirst({ where: eq(subscriptions.stripeSubscriptionId, 'sub_test_1') });
     expect(subscription?.status).toBe('active');
-    expect(subscription?.sessionsRemaining).toBe(2);
+    expect(subscription?.sessionsRemaining).toBe(4);
     expect(subscription?.welcomeEmailStatus).toBe('sent');
 
     expect(sentEmails).toHaveLength(1);
