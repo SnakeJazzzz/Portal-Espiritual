@@ -107,7 +107,7 @@ describe('Test 6 — Cancel flow', () => {
 });
 
 describe('Test 7 — Past_due → restore', () => {
-  it('payment_failed → past_due; invoice.paid → active + sessions reset to 2', async () => {
+  it('payment_failed → past_due; invoice.paid → active + sessions reset to 4', async () => {
     // Seed active sub with sessionsRemaining=0 (simulating mid-cycle usage)
     const product = await db.query.products.findFirst({ where: eq(products.slug, 'mentoria-1a1') });
     if (!product) throw new Error('mentoria product not seeded');
@@ -143,6 +143,6 @@ describe('Test 7 — Past_due → restore', () => {
       where: eq(subscriptions.stripeSubscriptionId, 'sub_pd_test'),
     });
     expect(s?.status).toBe('active');
-    expect(s?.sessionsRemaining).toBe(2);
+    expect(s?.sessionsRemaining).toBe(4);
   });
 });

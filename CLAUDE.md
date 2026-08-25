@@ -20,8 +20,8 @@ Producción en Vercel, auto-deploy desde `main`. Cliente único: Juan Pablo, gu�
 - `src/config/services.ts` es **single source of truth** para todo lo
   editable por el cliente (servicios, precios, descripciones, slugs Cal.com,
   hero/about copy). No hardcodear contenido en componentes.
-- Los 4 servicios actuales (Divinación de Cartas, Akáshica, Clásica,
-  Activación Cuántica) usan Cal.com.
+- El servicio Divinación (3 variantes de duración: 15/30/60 min, Fase 1
+  lanzada 2026-08-24) usa Cal.com.
 - La Mentoría 1-a-1 (Phase 6) usa Stripe Subscriptions directo, no Cal.com.
 - `StarField`, `ConstellationTitle` y `CelestialBorder` son la firma visual.
   Cambios en estos requieren visual review humano.

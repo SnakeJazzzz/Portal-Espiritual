@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { subscriptions } from '@/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
 import SessionsCounter from '@/components/SessionsCounter';
+import { MENTORIA_SESSIONS_PER_MONTH } from '@/config/mentoria';
 import PastDueBanner from '@/components/PastDueBanner';
 import InlineEditableField from '@/components/InlineEditableField';
 import ManageBillingButton from '@/components/ManageBillingButton';
@@ -39,7 +40,7 @@ export default async function CuentaPage() {
     <main className="min-h-screen px-4 py-16 max-w-xl mx-auto">
       {sub.status === 'past_due' && <PastDueBanner />}
       <h1 className="text-3xl font-heading text-white">Tu cuenta</h1>
-      <SessionsCounter remaining={sub.sessionsRemaining} total={2} />
+      <SessionsCounter remaining={sub.sessionsRemaining} total={MENTORIA_SESSIONS_PER_MONTH} />
 
       <section className="mt-8">
         <h2 className="text-xl font-heading text-white mb-2">Información personal</h2>

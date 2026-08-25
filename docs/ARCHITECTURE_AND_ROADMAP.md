@@ -28,18 +28,19 @@ Vercel, auto-deploy desde `main`.
 - Divinación Clásica (60 min, $888 MXN)
 - Activación Cuántica (60 min, $1111 MXN)
 
-(Estado actual verificado contra `src/config/services.ts`. **Nota:** la
-Fase 1 del plan vigente — `docs/PLAN_CATALOGO_Y_SADHANA.md` — reduce este
-catálogo a un solo servicio "Divinación" con 3 variantes de duración
-15/30/60 min y promoción de lanzamiento; los demás servicios salen del
-catálogo público.)
+(**Nota:** la Fase 1 del plan vigente — `docs/PLAN_CATALOGO_Y_SADHANA.md`
+— **lanzada 2026-08-24, tag `fase-1-catalogo`** — redujo este catálogo a
+un solo servicio "Divinación" con 3 variantes de duración 15/30/60 min y
+promoción de lanzamiento; los demás servicios salieron del catálogo
+público. El catálogo live real vive en `src/config/services.ts`.)
 
 **Phase 6 — Mentoría 1-a-1** (LIVE desde 2026-05-27, tag `phase-6-launched`)
 — suscripción mensual recurrente:
 
 - Precio: $2222 MXN/mes
 - Capacidad: 8 spots máximo (read-only counter en `/mentoria`)
-- Incluye: 2 sesiones privadas de 30 min al mes, acceso a mensajes directos
+- Incluye: 1 llamada privada semanal (desde Fase 1.5, 2026-08-24; antes
+  "2 sesiones privadas de 30 min al mes"), acceso a mensajes directos
   por Instagram, plan personalizado de desarrollo
 - Pago: Stripe Subscriptions (NO Cal.com), checkout hosted, webhook destination
   `we_1TbAtKLoQFUZprag5melpCZk` en LIVE (URL canónica:
